@@ -1,0 +1,23 @@
+import api from './api';
+import { AdminTable } from '../types';
+
+export const adminService = {
+  getStats: (params?: { from?: string, to?: string }) => api.get('/admin/dashboard/stats', { params }).then(res => res.data),
+  getTables: (): Promise<AdminTable[]> => api.get<AdminTable[]>('/admin/tables').then(res => res.data),
+  createTable: (data: any) => api.post('/admin/tables', data).then(res => res.data),
+  updateTable: (id: number, data: any) => api.put(`/admin/tables/${id}`, data).then(res => res.data),
+  deleteTable: (id: number) => api.delete(`/admin/tables/${id}`).then(res => res.data),
+  getBookings: () => api.get('/admin/bookings').then(res => res.data),
+  getCoaches: () => api.get('/admin/coaches').then(res => res.data),
+  createCoach: (data: any) => api.post('/admin/coaches', data).then(res => res.data),
+  updateCoach: (id: string, data: any) => api.put(`/admin/coaches/${id}`, data).then(res => res.data),
+  deleteCoach: (id: string) => api.delete(`/admin/coaches/${id}`).then(res => res.data),
+  getFnBItems: () => api.get('/admin/fnb').then(res => res.data),
+  createFnBItem: (data: any) => api.post('/admin/fnb', data).then(res => res.data),
+  updateFnBItem: (id: number, data: any) => api.put(`/admin/fnb/${id}`, data).then(res => res.data),
+  deleteFnBItem: (id: number) => api.delete(`/admin/fnb/${id}`).then(res => res.data),
+  getMemberships: () => api.get('/admin/memberships').then(res => res.data),
+  getAnalytics: (params?: { from?: string, to?: string }) => api.get('/admin/analytics', { params }).then(res => res.data),
+  checkinBooking: (id: string) => api.put(`/admin/bookings/${id}/checkin`).then(res => res.data),
+  checkoutBooking: (id: string, data: { paymentMethod: string }) => api.put(`/admin/bookings/${id}/checkout`, data).then(res => res.data),
+};

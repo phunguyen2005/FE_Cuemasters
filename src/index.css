@@ -1,0 +1,42 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@200;400;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #b7102a;
+  --color-primary-container: #db313f;
+  --color-on-primary: #ffffff;
+  --color-surface: #fcf9f8;
+  --color-on-surface: #1c1b1b;
+  --color-surface-variant: #e5e2e1;
+  --color-on-surface-variant: #5b403f;
+  --color-secondary: #5f5e5e;
+  --color-surface-container: #f0edec;
+  --color-surface-container-low: #f6f3f2;
+  --color-surface-container-high: #ebe7e7;
+  --color-surface-container-highest: #e5e2e1;
+  --color-outline: #8f6f6e;
+  --color-outline-variant: #e4bebc;
+  --color-tertiary: #00685d;
+
+  --font-headline: "Manrope", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-label: "Inter", sans-serif;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--color-surface);
+  color: var(--color-on-surface);
+}
+
+h1, h2, h3, .brand-font {
+  font-family: 'Manrope', sans-serif;
+}
+
+.billiard-gradient {
+  background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-container) 100%);
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}

@@ -1,20 +1,42 @@
-<div align="center">
-<img width="1200" height="475" alt="GHBanner" src="https://github.com/user-attachments/assets/0aa67016-6eaf-458a-adb2-6e31a0763ed6" />
-</div>
+# 🎱 CueMasters Frontend
 
-# Run and deploy your AI Studio app
+Hệ thống quản lý đặt bàn bida hiện đại, giao diện trực quan và thời gian thực.
 
-This contains everything you need to run your app locally.
+## 🚀 Công nghệ sử dụng
+- **Core:** React 18 + TypeScript + Vite
+- **UI:** TailwindCSS (Premium glassmorphism design)
+- **Icons:** Lucide React
+- **State Management:** Zustand
+- **Real-time:** SignalR
+- **Animation:** Tailwind CSS Animate
 
-View your app in AI Studio: https://ai.studio/apps/0bce3b30-63e2-4b6c-b6da-ea190a1f9863
+## 🛠 Hướng dẫn cài đặt
 
-## Run Locally
+1. **Clone repository:**
+   ```bash
+   git clone https://github.com/phunguyen2005/FE_Cuemasters.git
+   cd FE_Cuemasters
+   ```
 
-**Prerequisites:**  Node.js
+2. **Cài đặt dependencies:**
+   ```bash
+   npm install
+   ```
 
+3. **Cấu hình môi trường:**
+   - Copy file `.env.example` thành `.env`:
+     ```bash
+     cp .env.example .env
+     ```
+   - Cập nhật `VITE_API_URL` trỏ về backend API của bạn.
 
-1. Install dependencies:
-   `npm install`
-2. Set the `GEMINI_API_KEY` in [.env.local](.env.local) to your Gemini API key
-3. Run the app:
-   `npm run dev`
+4. **Chạy ứng dụng (Development):**
+   ```bash
+   npm run dev
+   ```
+
+## 📂 Cấu trúc dự án
+- `/src/pages/admin`: Giao diện quản trị, quản lý bàn, menu F&B, dashboard analytics.
+- `/src/pages/staff`: Giao diện dành cho nhân viên tại quầy.
+- `/src/components`: Các UI components dùng chung.
+- `/src/stores`: Quản lý state toàn cục (Auth, Table, Booking).

@@ -5,3 +5,4 @@ update footer-links
 update sidebar-menu
 update typography-updates
 update color-palette
+update icon-set

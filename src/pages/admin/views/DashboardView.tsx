@@ -12,6 +12,7 @@ export const DashboardView = () => {
   const [stats, setStats] = useState<any>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [adminTables, setAdminTables] = useState<AdminTable[]>([]);
+  const [warnings, setWarnings] = useState<string[]>([]);
   
   // Use global table store for tables to leverage SignalR
   const { tables: storeTables, fetchTables } = useTableStore();
@@ -21,14 +22,16 @@ export const DashboardView = () => {
 
   const fetchData = async () => {
     try {
-      const [statsData, bookingsData, tablesData] = await Promise.all([
+      const [statsData, bookingsData, tablesData, warningsData] = await Promise.all([
         adminService.getStats(),
         adminService.getBookings(), // took out arguments to match service
-        adminService.getTables()
+        adminService.getTables(),
+        adminService.getUpcomingWarnings()
       ]);
       setStats(statsData);
       setBookings(bookingsData.items || bookingsData);
       setAdminTables(Array.isArray(tablesData) ? tablesData : []);
+      setWarnings(warningsData || []);
       await fetchTables();
     } catch (e) {
       console.error('Error fetching dashboard data:', e);
@@ -53,16 +56,7 @@ export const DashboardView = () => {
   const inUseTables = displayTables.filter(t => t.displayStatus === 'InUse').length;
   const occupancyRate = displayTables.length > 0 ? Math.round((inUseTables / displayTables.length) * 100) : 0;
 
-  const handleCheckin = async (bookingId: string) => {
-    try {
-      await adminService.checkinBooking(bookingId);
-      alert("Check-in thành công!");
-      fetchData();
-    } catch (e: any) {
-      console.error(e);
-      alert(e.response?.data?.message || "Lỗi check-in");
-    }
-  };
+
 
   const activeBookings = bookings.filter(b => b.status === 'Confirmed' || b.status === 'InProgress');
 
@@ -81,7 +75,7 @@ export const DashboardView = () => {
         {[
           { label: 'Tỷ lệ lấp đầy hiện tại', value: `${occupancyRate}%`, sub: `${inUseTables}/${displayTables.length} bàn đang hoạt động` },
           { label: 'Doanh thu hôm nay', value: `${(stats?.revenue || 0).toLocaleString()}đ`, sub: '+0% so với hôm qua' },
-          { label: 'Doanh thu tuần này', value: `${(stats?.weeklyRevenue || (stats?.revenue || 0)).toLocaleString()}đ`, sub: 'Đạt yêu cầu' },
+          { label: 'No-Shows hôm nay', value: `${stats?.noShowsToday || 0}`, sub: `Thu cọc: ${(stats?.forfeitedDepositsToday || 0).toLocaleString()}đ` },
           { label: 'Bàn đang trống', value: `${stats?.availableTables ?? (displayTables.length - inUseTables)}`, sub: 'Trực tiếp từ sơ đồ' },
         ].map((kpi, i) => (
           <div key={i} className="bg-surface-lowest p-6 rounded-2xl border border-neutral-100 shadow-sm">
@@ -114,7 +108,6 @@ export const DashboardView = () => {
                   table={table} 
                   booking={booking}
                   onClick={(t) => { if (t.displayStatus === 'InUse') setOrderPanelTable(t); }} 
-                  onCheckin={handleCheckin}
                   onCheckout={(b, t) => setCheckoutBooking({ booking: b, table: t })}
                 />
               );
@@ -142,6 +135,21 @@ export const DashboardView = () => {
               )}
             </div>
           </div>
+
+          {warnings.length > 0 && (
+            <div className="bg-orange-50 p-6 rounded-2xl border border-orange-200 shadow-sm">
+              <h3 className="font-headline font-bold text-lg mb-4 text-orange-900 flex items-center gap-2">
+                <span className="material-symbols-outlined">warning</span> Cảnh báo Sức chứa
+              </h3>
+              <div className="space-y-3">
+                {warnings.map((w, i) => (
+                  <div key={i} className="flex gap-3 p-3 rounded-lg bg-white border border-orange-100 shadow-sm">
+                    <p className="text-sm font-medium text-orange-800">{w}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="bg-surface-lowest p-6 rounded-2xl border border-neutral-100 shadow-sm">
             <h3 className="font-headline font-bold text-lg mb-4">Yêu cầu F&B</h3>

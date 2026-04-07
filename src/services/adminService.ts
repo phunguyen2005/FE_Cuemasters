@@ -21,6 +21,11 @@ export const adminService = {
   updateMembership: (id: number, data: any) => api.put(`/admin/memberships/${id}`, data).then(res => res.data),
   deleteMembership: (id: number) => api.delete(`/admin/memberships/${id}`).then(res => res.data),
   getAnalytics: (params?: { from?: string, to?: string }) => api.get('/admin/analytics', { params }).then(res => res.data),
-  checkinBooking: (id: string) => api.put(`/admin/bookings/${id}/checkin`).then(res => res.data),
+  checkinBooking: (id: string, data: { tableId: number }) => api.put(`/admin/bookings/${id}/checkin`, data).then(res => res.data),
   checkoutBooking: (id: string, data: { paymentMethod: string }) => api.put(`/admin/bookings/${id}/checkout`, data).then(res => res.data),
+  startWalkIn: (tableId: number, data: { guestName: string }) => api.post(`/admin/tables/${tableId}/walkin`, data).then(res => res.data),
+  getPendingCheckins: (date: string) => api.get('/admin/bookings/pending-checkin', { params: { date } }).then(res => res.data),
+  getUpcomingWarnings: () => api.get('/admin/bookings/upcoming-warnings').then(res => res.data),
+  linkCoachSession: (id: string, data: { coachingSessionId: string }) => api.put(`/admin/bookings/${id}/link-coach-session`, data).then(res => res.data),
+  getAvailableCoachSessions: (id: string) => api.get(`/admin/bookings/${id}/available-coach-sessions`).then(res => res.data),
 };

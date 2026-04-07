@@ -58,6 +58,7 @@ export default function Membership({ onNavigate }: ScreenProps) {
                       <li>• {plan.tableDiscountPercent}% giảm giá bàn</li>
                       <li>• {plan.fnbDiscountPercent}% giảm giá F&B</li>
                       <li>• {plan.freeCoachingHours}h huấn luyện miễn phí</li>
+                      <li>• Đặt trước {plan.name === 'Gold' ? 3 : plan.name === 'Silver' ? 1 : 0} ngày</li>
                     </ul>
                     <button onClick={async () => {
                       await subscribe(plan.id);
@@ -77,8 +78,8 @@ export default function Membership({ onNavigate }: ScreenProps) {
                 <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-4 text-primary">
                   <span className="material-symbols-outlined">schedule</span>
                 </div>
-                <h4 className="font-bold text-lg mb-2">Đặt bàn trước 7 ngày</h4>
-                <p className="text-sm text-secondary leading-relaxed">Ưu tiên chọn bàn đẹp nhất trước các thành viên khác một tuần.</p>
+                <h4 className="font-bold text-lg mb-2">Đặt trước {myMembership?.planName === 'Gold' ? '3 ngày' : myMembership?.planName === 'Silver' ? '1 ngày' : 'trong ngày'}</h4>
+                <p className="text-sm text-secondary leading-relaxed">Ưu tiên giữ chỗ các khung giờ vàng theo hạng thẻ của bạn.</p>
               </div>
 
               <div className="bg-surface-container-low p-6 rounded-xl border border-outline-variant/10 hover:border-primary/30 transition-colors">

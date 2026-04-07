@@ -3,8 +3,7 @@ import { Coach, CoachAvailabilitySlot } from '../types';
 import { coachService } from '../services/coachService';
 
 interface BookCoachPayload {
-  tableId: number;
-  bookingDate: string;
+  sessionDate: string;
   startTime: string;
   endTime: string;
 }
@@ -63,14 +62,13 @@ export const useCoachStore = create<CoachState>((set, get) => ({
     set({ isBooking: true });
     try {
       await coachService.bookCoach({
-        tableId: payload.tableId,
         coachId: selectedCoach.id,
-        bookingDate: payload.bookingDate,
+        sessionDate: payload.sessionDate,
         startTime: payload.startTime,
         endTime: payload.endTime,
       });
       // Refresh availability so the booked slot reflects the new state
-      await get().fetchAvailability(selectedCoach.id, payload.bookingDate);
+      await get().fetchAvailability(selectedCoach.id, payload.sessionDate);
       return { success: true, message: 'Đặt lịch thành công!' };
     } catch (err: any) {
       const message = err?.response?.data?.message || err?.message || 'Không thể đặt lịch.';

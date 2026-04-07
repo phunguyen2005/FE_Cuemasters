@@ -23,19 +23,15 @@ export const coachService = {
   },
 
   bookCoach: async (payload: {
-    tableId: number;
     coachId: string;
-    bookingDate: string; // yyyy-MM-dd
+    sessionDate: string; // yyyy-MM-dd
     startTime: string;   // HH:mm
     endTime: string;     // HH:mm
   }) => {
-    const response = await api.post('/bookings', {
-      tableId: payload.tableId,
-      bookingDate: payload.bookingDate,
+    const response = await api.post(`/coaches/${payload.coachId}/book`, {
+      sessionDate: payload.sessionDate,
       startTime: payload.startTime,
-      endTime: payload.endTime,
-      coachId: payload.coachId,
-      fnBOrders: []
+      endTime: payload.endTime
     });
     return response.data;
   }

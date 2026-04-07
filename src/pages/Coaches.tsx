@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { format, addDays, startOfWeek } from 'date-fns';
 import { useCoachStore } from '../stores/coachStore';
-import { useTableStore } from '../stores/tableStore';
 import { useAuthStore } from '../stores/authStore';
 import { ScreenProps } from '../types';
 import CustomerLayout from '../components/layout/CustomerLayout';
@@ -15,16 +14,13 @@ export default function Coaches({ onNavigate }: ScreenProps) {
     selectedSlot, setSelectedSlot,
     bookCoach, isBooking,
   } = useCoachStore();
-  const { tables, fetchTables } = useTableStore();
   const isAuthenticated = useAuthStore(s => s.isAuthenticated);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [selectedTableId, setSelectedTableId] = useState<number | ''>('');
   const [bookingFeedback, setBookingFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     fetchCoaches();
-    fetchTables();
-  }, [fetchCoaches, fetchTables]);
+  }, [fetchCoaches]);
 
   useEffect(() => {
     if (selectedCoach && selectedDate) {
@@ -33,25 +29,19 @@ export default function Coaches({ onNavigate }: ScreenProps) {
     }
   }, [selectedCoach, selectedDate, fetchAvailability]);
 
-  const bookableTables = tables.filter(t => t.status !== 'Maintenance');
-
   const handleConfirmBooking = async () => {
-    if (!selectedCoach || !selectedSlot || !selectedTableId) return;
+    if (!selectedCoach || !selectedSlot) return;
     if (!isAuthenticated) {
       setBookingFeedback({ type: 'error', message: 'Bạn cần đăng nhập để đặt lịch.' });
       onNavigate?.('login');
       return;
     }
     const result = await bookCoach({
-      tableId: Number(selectedTableId),
-      bookingDate: format(selectedDate, 'yyyy-MM-dd'),
+      sessionDate: format(selectedDate, 'yyyy-MM-dd'),
       startTime: selectedSlot.startTime,
       endTime: selectedSlot.endTime,
     });
     setBookingFeedback({ type: result.success ? 'success' : 'error', message: result.message });
-    if (result.success) {
-      setSelectedTableId('');
-    }
   };
 
   return (
@@ -186,21 +176,7 @@ export default function Coaches({ onNavigate }: ScreenProps) {
                 )}
               </div>
 
-              <div className="mb-4">
-                <label className="block text-[10px] uppercase font-bold tracking-widest text-stone-500 mb-2">Chọn bàn</label>
-                <select
-                  value={selectedTableId}
-                  onChange={e => setSelectedTableId(e.target.value ? Number(e.target.value) : '')}
-                  className="w-full bg-[#1C1C1C] text-stone-200 border border-white/10 rounded-sm px-3 py-3 text-sm focus:outline-none focus:border-primary"
-                >
-                  <option value="">— Chọn bàn —</option>
-                  {bookableTables.map(t => (
-                    <option key={t.id} value={t.id}>
-                      {t.tableNumber} · {t.type} · {formatCurrency(t.hourlyRate)}/h
-                    </option>
-                  ))}
-                </select>
-              </div>
+
 
               {bookingFeedback && (
                 <div className={`mb-4 px-3 py-2 text-xs rounded-sm ${bookingFeedback.type === 'success' ? 'bg-green-900/40 text-green-300 border border-green-700/40' : 'bg-red-900/40 text-red-300 border border-red-700/40'}`}>
@@ -210,7 +186,7 @@ export default function Coaches({ onNavigate }: ScreenProps) {
 
               <button
                 onClick={handleConfirmBooking}
-                disabled={!selectedSlot || !selectedTableId || isBooking}
+                disabled={!selectedSlot || isBooking}
                 className="w-full bg-primary text-white py-4 font-label text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-red-700 transition-colors rounded-sm shadow-[0_4px_14px_rgba(224,36,36,0.2)] disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {isBooking ? 'Đang xử lý...' : 'Xác nhận đặt lịch'}

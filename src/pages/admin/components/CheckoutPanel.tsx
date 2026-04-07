@@ -1,10 +1,33 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { X, Receipt, Wallet, Banknote, CreditCard } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
 
 export const CheckoutPanel = ({ isOpen, onClose, table, booking }: any) => {
   const [submitting, setSubmitting] = useState(false);
+  const [linking, setLinking] = useState(false);
+  const [linkableSessions, setLinkableSessions] = useState<any[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'VnPay'>('Cash');
+
+  useEffect(() => {
+    if (isOpen && booking?.id) {
+      adminService.getAvailableCoachSessions(booking.id)
+        .then((res: any) => setLinkableSessions(res))
+        .catch((err: any) => console.error("Could not fetch linkable coach sessions:", err));
+    }
+  }, [isOpen, booking]);
+
+  const handleLinkCoach = async (sessionId: string) => {
+    setLinking(true);
+    try {
+      await adminService.linkCoachSession(booking.id, { coachingSessionId: sessionId });
+      alert('Đã gộp phí HLV thành công! Vui lòng mở lại bảng thanh toán để xem hóa đơn mới.');
+      onClose(true); // Triggers reload and close
+    } catch (e: any) {
+      alert(e.response?.data?.message || 'Có lỗi khi gộp HLV');
+    } finally {
+      setLinking(false);
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -23,8 +46,11 @@ export const CheckoutPanel = ({ isOpen, onClose, table, booking }: any) => {
     }
   };
 
-  const tableCost = booking ? (booking.totalPrice - booking.fnBTotal - booking.coachingTotal + (booking.discountAmount || 0)) : 0;
+  const tableCost = booking ? ((booking.actualCost || booking.totalPrice) - (booking.fnBTotal || 0) - (booking.coachingTotal || 0) + (booking.discountAmount || 0)) : 0;
   const discount = booking?.discountAmount || 0;
+  const deposit = booking?.depositAmount || 0;
+  const totalCost = booking?.actualCost || booking?.totalPrice || 0;
+  const amountDue = Math.max(0, totalCost - deposit);
   
   return (
     <div className="fixed inset-y-0 right-0 z-[70] w-[400px] bg-white shadow-2xl flex flex-col border-l border-neutral-200 animate-in slide-in-from-right duration-300">
@@ -60,11 +86,48 @@ export const CheckoutPanel = ({ isOpen, onClose, table, booking }: any) => {
               <span className="font-bold">-{discount.toLocaleString()}đ</span>
             </div>
           )}
-          <div className="pt-3 border-t border-dashed border-neutral-300 flex justify-between items-center">
-            <span className="font-bold text-neutral-900 text-base">Tổng cộng</span>
-            <span className="font-bold text-primary text-xl">{booking?.totalPrice?.toLocaleString() || 0}đ</span>
+          {deposit > 0 && (
+            <div className="flex justify-between items-center text-emerald-600">
+              <span className="font-medium">Tiền cọc trước</span>
+              <span className="font-bold">-{deposit.toLocaleString()}đ</span>
+            </div>
+          )}
+          
+          <div className="pt-3 border-t border-dashed border-neutral-300 flex flex-col gap-1">
+            <div className="flex justify-between items-center">
+               <span className="font-bold text-neutral-900 text-base">Tổng chi phí</span>
+               <span className="font-bold text-neutral-500 text-lg">{totalCost.toLocaleString()}đ</span>
+            </div>
+            <div className="flex justify-between items-center mt-1">
+               <span className="font-black text-primary text-xl">KHÁCH CẦN TRẢ</span>
+               <span className="font-black text-primary text-2xl">{amountDue.toLocaleString()}đ</span>
+            </div>
           </div>
         </div>
+
+        {linkableSessions?.length > 0 && (
+          <div className="space-y-4">
+            <h3 className="font-headline font-bold text-lg flex items-center gap-2 text-primary">Phiên Dạy Kèm (Chưa tính)</h3>
+            <div className="flex flex-col gap-3">
+              {linkableSessions.map((session, i) => (
+                <div key={i} className="p-3 border border-tertiary/30 bg-teal-50 rounded-xl flex items-center justify-between">
+                  <div>
+                    <p className="font-bold text-sm">HLV: {session.coachName}</p>
+                    <p className="text-xs text-neutral-500">{session.sessionDate.slice(0, 10)} | {session.startTime} - {session.endTime}</p>
+                    <p className="text-sm font-bold text-tertiary">{session.cost?.toLocaleString()}đ</p>
+                  </div>
+                  <button 
+                    disabled={linking}
+                    onClick={() => handleLinkCoach(session.id)}
+                    className="px-3 py-1 bg-tertiary text-white rounded font-bold text-[10px] uppercase tracking-wider hover:bg-teal-700 transition"
+                  >
+                    {linking ? 'Đang gộp...' : '+ Gộp Bill'}
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         <div className="space-y-4">
           <h3 className="font-headline font-bold text-lg flex items-center gap-2"><Wallet size={20} className="text-primary"/> Phương thức TT</h3>

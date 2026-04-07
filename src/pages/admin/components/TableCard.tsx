@@ -13,13 +13,15 @@ export const TableCard = ({
   booking,
   onClick,
   onCheckin,
-  onCheckout
+  onCheckout,
+  onWalkin
 }: { 
   table: AdminTable, 
   booking?: any,
   onClick?: (table: AdminTable) => void,
   onCheckin?: (bookingId: string) => void,
-  onCheckout?: (booking: any, table: AdminTable) => void
+  onCheckout?: (booking: any, table: AdminTable) => void,
+  onWalkin?: (table: AdminTable) => void
 }) => {
   const status = table.displayStatus;
   let statusColor = 'border-neutral-200';
@@ -107,6 +109,15 @@ export const TableCard = ({
           className="mt-2 w-full py-2 bg-primary text-white rounded-lg font-bold text-sm hover:bg-primary-600 transition-colors"
         >
           Thanh toán
+        </button>
+      )}
+
+      {status === 'Available' && (
+        <button 
+          onClick={(e) => { e.stopPropagation(); onWalkin?.(table); }}
+          className="mt-2 w-full py-2 bg-neutral-800 text-white rounded-lg font-bold text-sm hover:bg-neutral-700 transition-colors"
+        >
+          Khách vãng lai
         </button>
       )}
     </div>

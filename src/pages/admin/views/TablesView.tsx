@@ -6,6 +6,7 @@ import { AdminModal } from '../components/AdminModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { InSessionOrderPanel } from '../components/InSessionOrderPanel';
 import { CheckoutPanel } from '../components/CheckoutPanel';
+import { WalkInModal } from '../components/WalkInModal';
 import { AdminTable, TableType, TableStatus } from '../../../types';
 
 const LiveElapsedTime = ({ startTime }: { startTime: string }) => {
@@ -42,7 +43,10 @@ export const TablesView = () => {
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [orderPanelTable, setOrderPanelTable] = useState<AdminTable | null>(null);
   const [checkoutBooking, setCheckoutBooking] = useState<{booking: any, table: AdminTable} | null>(null);
+  const [walkInTable, setWalkInTable] = useState<AdminTable | null>(null);
   const [bookings, setBookings] = useState<any[]>([]);
+  const [pendingCheckins, setPendingCheckins] = useState<any[]>([]);
+  const [selectedPendingBooking, setSelectedPendingBooking] = useState<any>(null);
   const [formData, setFormData] = useState({
     tableNumber: '',
     type: 'Pool' as TableType,
@@ -54,7 +58,9 @@ export const TablesView = () => {
     try {
       const data = await adminService.getTables();
       const bookingsData = await adminService.getBookings();
+      const pcData = await adminService.getPendingCheckins(new Date().toISOString().split('T')[0]);
       setBookings(bookingsData.items || bookingsData);
+      setPendingCheckins(pcData || []);
       setAdminTables(Array.isArray(data) ? data : []);
     } catch (e: any) {
       console.error('Error fetching tables:', e);
@@ -131,20 +137,41 @@ export const TablesView = () => {
   };
 
   const handleCheckin = async (bookingId: string) => {
-    try {
-      await adminService.checkinBooking(bookingId);
-      alert("Check-in thành công!");
-      loadData();
-    } catch (e: any) {
-      console.error(e);
-      alert(e.response?.data?.message || "Lỗi check-in");
-    }
+    // Only used for backwards compatibility if needed, but the main check-in is through the pending modal now.
+    alert("Vui lòng check-in từ danh sách 'Khách Online Chờ Nhận Bàn'");
   };
 
   const activeBookings = bookings.filter(b => b.status === 'Confirmed' || b.status === 'InProgress');
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-500">
+      {pendingCheckins.length > 0 && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-6 shadow-sm">
+          <h2 className="text-xl font-headline font-bold text-amber-900 mb-4">Khách Online Chờ Nhận Bàn</h2>
+          <div className="flex gap-4 overflow-x-auto pb-2">
+            {pendingCheckins.map(pb => (
+              <div key={pb.id} className="min-w-[280px] bg-white p-4 rounded-xl border border-amber-200 shadow-sm">
+                <div className="flex justify-between items-start mb-2">
+                  <h4 className="font-bold text-neutral-900">{pb.guestName || pb.customerName || pb.user?.fullName}</h4>
+                  <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-700">
+                    {pb.requestedTableType}
+                  </span>
+                </div>
+                <div className="text-sm text-neutral-500 flex items-center gap-1 mb-4">
+                  <Clock size={14} /> Giờ: {pb.startTime} - {pb.endTime}
+                </div>
+                <button 
+                  onClick={() => setSelectedPendingBooking(pb)}
+                  className="w-full py-2 bg-amber-600 text-white rounded-lg font-bold text-sm hover:bg-amber-700 transition-colors"
+                >
+                  Xếp bàn & Check-in
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-6">
         <div className="bg-surface-lowest p-6 rounded-2xl border border-neutral-100 shadow-sm">
@@ -279,6 +306,11 @@ export const TablesView = () => {
                       </td>
                       <td className="py-3 px-4 font-medium text-primary">{table.hourlyRate?.toLocaleString() || 0}đ</td>
                       <td className="py-3 px-4 text-right">
+                        {status === 'Available' && (
+                          <button aria-label="Khách vãng lai" title="Khách vãng lai" onClick={(e) => { e.stopPropagation(); setWalkInTable(table); }} className="p-2 text-neutral-400 hover:text-neutral-900 transition-colors mr-2 text-xs font-bold uppercase">
+                            Vãng lai
+                          </button>
+                        )}
                         <button aria-label={`Sửa bàn ${table.tableNumber}`} title={`Sửa bàn ${table.tableNumber}`} onClick={(e) => { e.stopPropagation(); openEdit(table); }} className="p-2 text-neutral-400 hover:text-primary transition-colors">
                           <Edit size={16} />
                         </button>
@@ -332,6 +364,7 @@ export const TablesView = () => {
                   onClick={(t) => { if (t.displayStatus === 'InUse') setOrderPanelTable(t); }} 
                   onCheckin={handleCheckin}
                   onCheckout={(b, t) => setCheckoutBooking({ booking: b, table: t })}
+                  onWalkin={(t) => setWalkInTable(t)}
                 />
               );
             })}
@@ -420,6 +453,39 @@ export const TablesView = () => {
         table={checkoutBooking?.table}
         booking={checkoutBooking?.booking}
       />
+      <WalkInModal
+        isOpen={!!walkInTable}
+        onClose={(success: boolean) => { setWalkInTable(null); if (success) loadData(); }}
+        table={walkInTable}
+      />
+      <AdminModal isOpen={!!selectedPendingBooking} onClose={() => setSelectedPendingBooking(null)} title="Phân bổ bàn cho khách">
+        <div className="space-y-4">
+          <p className="text-sm text-neutral-600">Chọn bàn trống thuộc loại <strong>{selectedPendingBooking?.requestedTableType}</strong> để check-in cho khách <strong>{selectedPendingBooking?.guestName || selectedPendingBooking?.customerName || selectedPendingBooking?.user?.fullName}</strong>.</p>
+          <div className="grid grid-cols-3 gap-3">
+            {adminTables.filter(t => t.displayStatus === 'Available' && t.type === selectedPendingBooking?.requestedTableType).map(t => (
+              <button 
+                key={t.id}
+                onClick={async () => {
+                  try {
+                    await adminService.checkinBooking(selectedPendingBooking.id, { tableId: t.id });
+                    alert('Check-in thành công!');
+                    setSelectedPendingBooking(null);
+                    loadData();
+                  } catch (e: any) {
+                    alert(e.response?.data?.message || 'Có lỗi xảy ra');
+                  }
+                }}
+                className="py-3 px-4 border-2 border-tertiary bg-teal-50 text-tertiary font-bold rounded-xl hover:bg-tertiary hover:text-white transition-colors"
+              >
+                Bàn {t.tableNumber}
+              </button>
+            ))}
+            {adminTables.filter(t => t.displayStatus === 'Available' && t.type === selectedPendingBooking?.requestedTableType).length === 0 && (
+              <div className="col-span-3 text-center py-4 text-error bg-error/10 rounded-xl font-medium border border-error/20">Không có bàn trống loại này! Vui lòng dọn dẹp hoặc đợi khách khác trả bàn.</div>
+            )}
+          </div>
+        </div>
+      </AdminModal>
     </div>
   );
 };

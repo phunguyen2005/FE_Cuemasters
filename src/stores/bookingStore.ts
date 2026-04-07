@@ -1,9 +1,10 @@
 import { create } from 'zustand';
-import { BilliardTable, Booking, CreateBookingRequest, CreateBookingResponse } from '../types';
+import { Booking, CreateBookingRequest, CreateBookingResponse, TableType, CategoryAvailability } from '../types';
 import { bookingService } from '../services/bookingService';
 
 interface BookingState {
-  selectedTable: BilliardTable | null;
+  selectedCategory: TableType | null;
+  categoryAvailability: CategoryAvailability | null;
   selectedDate: Date;
   selectedSlots: string[];
   bookings: Booking[];
@@ -12,17 +13,19 @@ interface BookingState {
   page: number;
   pageSize: number;
   totalPages: number;
-  setSelectedTable: (table: BilliardTable | null) => void;
+  setSelectedCategory: (category: TableType | null) => void;
   setSelectedDate: (date: Date) => void;
   toggleSlot: (slot: string) => void;
   clearBooking: () => void;
+  fetchCategoryAvailability: (category: TableType, date: Date) => Promise<void>;
   fetchBookings: (page?: number, size?: number, status?: string) => Promise<void>;
   createBooking: (data: CreateBookingRequest) => Promise<CreateBookingResponse>;
   cancelBooking: (id: string) => Promise<boolean>;
 }
 
 export const useBookingStore = create<BookingState>((set) => ({
-  selectedTable: null,
+  selectedCategory: null,
+  categoryAvailability: null,
   selectedDate: new Date(),
   selectedSlots: [],
   bookings: [],
@@ -31,14 +34,26 @@ export const useBookingStore = create<BookingState>((set) => ({
   page: 1,
   pageSize: 10,
   totalPages: 0,
-  setSelectedTable: (table) => set({ selectedTable: table, selectedSlots: [] }),
-  setSelectedDate: (date) => set({ selectedDate: date, selectedSlots: [] }),
+  setSelectedCategory: (category) => set({ selectedCategory: category, selectedSlots: [], categoryAvailability: null }),
+  setSelectedDate: (date) => set({ selectedDate: date, selectedSlots: [], categoryAvailability: null }),
   toggleSlot: (slot) => set((state) => ({
     selectedSlots: state.selectedSlots.includes(slot) 
       ? state.selectedSlots.filter(s => s !== slot)
       : [...state.selectedSlots, slot].sort()
   })),
-  clearBooking: () => set({ selectedTable: null, selectedSlots: [] }),
+  clearBooking: () => set({ selectedCategory: null, selectedSlots: [], categoryAvailability: null }),
+  
+  fetchCategoryAvailability: async (category, date) => {
+    set({ isLoading: true });
+    try {
+      // Create local string copy like 'YYYY-MM-DD'
+      const dateString = date.toLocaleDateString('en-CA'); 
+      const response = await bookingService.getCategoryAvailability(category, dateString);
+      set({ categoryAvailability: response });
+    } finally {
+      set({ isLoading: false });
+    }
+  },
   
   fetchBookings: async (page = 1, size = 10, status) => {
     set({ isLoading: true });

@@ -1,9 +1,16 @@
 import api from './api';
-import { Booking, BookingListResponse, CreateBookingRequest, CreateBookingResponse } from '../types';
+import { Booking, BookingListResponse, CreateBookingRequest, CreateBookingResponse, CategoryAvailability, TableType } from '../types';
 
 export const bookingService = {
   createBooking: async (data: CreateBookingRequest): Promise<CreateBookingResponse> => {
     const response = await api.post<CreateBookingResponse>('/bookings', data);
+    return response.data;
+  },
+
+  getCategoryAvailability: async (tableType: TableType, date: string): Promise<CategoryAvailability> => {
+    const response = await api.get<CategoryAvailability>('/bookings/category-availability', {
+      params: { tableType, date }
+    });
     return response.data;
   },
   

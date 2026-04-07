@@ -147,12 +147,20 @@ export type BookingStatus = 'Pending' | 'Confirmed' | 'InProgress' | 'Completed'
 export interface Booking {
   id: string;
   userId: string;
-  tableId: number;
-  tableName: string;
+  tableId: number | null;
+  tableName: string | null;
+  requestedTableType: TableType;
   startTime: string;
   endTime: string;
   status: BookingStatus;
+  bookingType?: string;
   totalPrice: number;
+  depositAmount?: number;
+  depositForfeited?: boolean;
+  checkedInAt?: string;
+  checkedOutAt?: string;
+  actualCost?: number;
+  guestName?: string;
   createdAt: string;
   coachingSession?: {
     coachId: string;
@@ -176,13 +184,43 @@ export interface CreateFnBOrderRequest {
 }
 
 export interface CreateBookingRequest {
-  tableId: number;
+  requestedTableType: TableType;
   bookingDate: string;
   startTime: string;
   endTime: string;
-  coachId?: string;
   fnBOrders?: CreateFnBOrderRequest[];
 }
+
+export interface CreateCoachingSessionRequest {
+  coachId: string;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+}
+
+export interface CoachingSession {
+  id: string;
+  coachId: string;
+  studentUserId: string;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+  cost: number;
+}
+
+export interface CategoryAvailabilitySlot {
+  startTime: string;
+  endTime: string;
+  available: number;
+  capacity: number;
+}
+
+export interface CategoryAvailability {
+  tableType: TableType;
+  date: string;
+  slots: CategoryAvailabilitySlot[];
+}
+
 
 export interface CreateBookingResponse {
   message: string;

@@ -42,3 +42,4 @@ update floating-labels
 update form-select
 update form-checks
 update form-range
+update floating-action-button

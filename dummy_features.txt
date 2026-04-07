@@ -8,3 +8,4 @@ update color-palette
 update icon-set
 update logo-alignment
 update loading-animations
+update transition-effects

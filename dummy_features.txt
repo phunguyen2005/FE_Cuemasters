@@ -22,3 +22,4 @@ update alert-messages
 update toast-notifications
 update spinner-sizes
 update progress-bars
+update tab-navigation

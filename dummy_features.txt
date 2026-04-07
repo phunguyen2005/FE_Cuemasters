@@ -3,3 +3,4 @@ update modal-layout
 update header-nav
 update footer-links
 update sidebar-menu
+update typography-updates

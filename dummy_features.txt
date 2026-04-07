@@ -36,3 +36,4 @@ update offcanvas-menus
 update backdrop-filters
 update avatar-components
 update button-groups
+update button-toolbar

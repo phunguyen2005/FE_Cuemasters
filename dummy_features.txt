@@ -30,3 +30,4 @@ update dropdown-menus
 update accordion-panels
 update slider-components
 update dialog-boxes
+update drawer-overlays

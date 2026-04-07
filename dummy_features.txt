@@ -14,3 +14,4 @@ update border-radius
 update input-validation
 update form-layout
 update table-sorting
+update list-styles

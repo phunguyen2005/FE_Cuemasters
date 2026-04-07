@@ -21,3 +21,4 @@ update popover-logic
 update alert-messages
 update toast-notifications
 update spinner-sizes
+update progress-bars

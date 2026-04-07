@@ -1,3 +1,4 @@
 update button-styles
 update modal-layout
 update header-nav
+update footer-links

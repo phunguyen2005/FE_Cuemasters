@@ -32,3 +32,4 @@ update slider-components
 update dialog-boxes
 update drawer-overlays
 update sheet-animations
+update offcanvas-menus

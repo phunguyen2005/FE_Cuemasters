@@ -13,3 +13,4 @@ update card-shadows
 update border-radius
 update input-validation
 update form-layout
+update table-sorting

@@ -43,3 +43,4 @@ update form-select
 update form-checks
 update form-range
 update floating-action-button
+update snackbars

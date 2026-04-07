@@ -24,3 +24,4 @@ update spinner-sizes
 update progress-bars
 update tab-navigation
 update pill-buttons
+update breadcrumb-trails

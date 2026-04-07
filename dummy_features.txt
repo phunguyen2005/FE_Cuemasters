@@ -47,3 +47,4 @@ update snackbars
 update scrollspy-logic
 update collapse-animations
 update ratio-helpers
+update visually-hidden-classes

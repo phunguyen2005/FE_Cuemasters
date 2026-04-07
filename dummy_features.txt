@@ -45,3 +45,4 @@ update form-range
 update floating-action-button
 update snackbars
 update scrollspy-logic
+update collapse-animations

@@ -8,6 +8,24 @@ import { InSessionOrderPanel } from '../components/InSessionOrderPanel';
 import { CheckoutPanel } from '../components/CheckoutPanel';
 import { AdminTable, TableType, TableStatus } from '../../../types';
 
+const LiveElapsedTime = ({ startTime }: { startTime: string }) => {
+  const [elapsed, setElapsed] = useState('');
+  useEffect(() => {
+    const update = () => {
+      if (!startTime) return;
+      const diff = Math.max(0, Date.now() - new Date(startTime).getTime());
+      const mins = Math.floor(diff / 60000);
+      const hours = Math.floor(mins / 60);
+      setElapsed(hours > 0 ? `${hours}h ${mins % 60}m` : `${mins}m`);
+    };
+    update();
+    const interval = setInterval(update, 60000);
+    return () => clearInterval(interval);
+  }, [startTime]);
+  return <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-neutral-100 text-neutral-600">{elapsed}</span>;
+};
+
+
 export const TablesView = () => {
   const [adminTables, setAdminTables] = useState<AdminTable[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('list');
@@ -214,6 +232,7 @@ export const TablesView = () => {
                   <th className="py-3 px-4 font-semibold text-sm text-neutral-600">Số bàn</th>
                   <th className="py-3 px-4 font-semibold text-sm text-neutral-600">Loại bàn</th>
                   <th className="py-3 px-4 font-semibold text-sm text-neutral-600">Trạng thái</th>
+                  <th className="py-3 px-4 font-semibold text-sm text-neutral-600">Khách / Lịch</th>
                   <th className="py-3 px-4 font-semibold text-sm text-neutral-600">Đơn giá / Giờ</th>
                   <th className="py-3 px-4 font-semibold text-sm text-neutral-600 text-right">Thao tác</th>
                 </tr>
@@ -221,6 +240,7 @@ export const TablesView = () => {
               <tbody>
                 {paginatedData.map(table => {
                   const status = table.displayStatus;
+                  const booking = activeBookings.find(b => b.tableId === table.id && b.status === (table.displayStatus === 'Reserved' ? 'Confirmed' : 'InProgress'));
                   let badge = "bg-neutral-100 text-neutral-600";
                   if (status === 'InUse') badge = 'bg-red-50 text-red-600';
                   else if (status === 'Available') badge = 'bg-teal-50 text-teal-600';
@@ -237,6 +257,25 @@ export const TablesView = () => {
                         <span className={`px-2 py-1 rounded text-xs font-bold ${badge}`}>
                           {statusLabel}
                         </span>
+                      </td>
+                      <td className="py-3 px-4 min-w-[200px]">
+                        {status === 'InUse' ? (
+                          <div className="flex flex-col">
+                            <span className="font-medium text-neutral-900">{table.currentCustomerName || 'Khách vãng lai'}</span>
+                            <div className="flex items-center text-xs text-neutral-500 mt-1">
+                              <span className="flex items-center gap-1"><Clock size={12} /> Bắt đầu {table.currentSessionStartedAt ? new Date(table.currentSessionStartedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
+                              {table.currentSessionStartedAt && <LiveElapsedTime startTime={table.currentSessionStartedAt} />}
+                            </div>
+                          </div>
+                        ) : status === 'Reserved' ? (
+                          <div className="flex flex-col">
+                            <span className="font-medium text-neutral-900">{booking?.account?.fullName || booking?.customerName || table.currentCustomerName || 'Khách'}</span>
+                            <div className="flex items-center gap-1 text-xs text-amber-600 mt-1">
+                              <Clock size={12} />
+                              <span>Đặt lúc {table.nextBookingStartTime ? new Date(table.nextBookingStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
+                            </div>
+                          </div>
+                        ) : null}
                       </td>
                       <td className="py-3 px-4 font-medium text-primary">{table.hourlyRate?.toLocaleString() || 0}đ</td>
                       <td className="py-3 px-4 text-right">

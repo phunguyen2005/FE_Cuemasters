@@ -39,3 +39,4 @@ update button-groups
 update button-toolbar
 update input-groups
 update floating-labels
+update form-select

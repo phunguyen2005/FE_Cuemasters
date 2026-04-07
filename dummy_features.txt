@@ -28,3 +28,4 @@ update breadcrumb-trails
 update pagination-controls
 update dropdown-menus
 update accordion-panels
+update slider-components

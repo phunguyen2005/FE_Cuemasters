@@ -10,3 +10,4 @@ update logo-alignment
 update loading-animations
 update transition-effects
 update card-shadows
+update border-radius

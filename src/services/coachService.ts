@@ -20,5 +20,23 @@ export const coachService = {
       console.error("Failed to fetch coach availability", error);
       return [];
     }
+  },
+
+  bookCoach: async (payload: {
+    tableId: number;
+    coachId: string;
+    bookingDate: string; // yyyy-MM-dd
+    startTime: string;   // HH:mm
+    endTime: string;     // HH:mm
+  }) => {
+    const response = await api.post('/bookings', {
+      tableId: payload.tableId,
+      bookingDate: payload.bookingDate,
+      startTime: payload.startTime,
+      endTime: payload.endTime,
+      coachId: payload.coachId,
+      fnBOrders: []
+    });
+    return response.data;
   }
 };

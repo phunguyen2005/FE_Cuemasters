@@ -5,11 +5,9 @@ import { useSignalR } from '../hooks/useSignalR';
 import { tableService } from '../services/tableService';
 import { ScreenProps, TableAvailabilitySlot } from '../types';
 import { useBookingStore } from '../stores/bookingStore';
-import { useFnBStore } from '../stores/fnbStore';
 import { useTableStore } from '../stores/tableStore';
+import { formatCurrency } from '../utils/formatCurrency';
 
-const DEFAULT_MENU_IMAGE =
-  'https://images.unsplash.com/photo-1515003197210-e0cd71810b5f?auto=format&fit=crop&w=400&q=80';
 const THIRTY_MINUTES_IN_MS = 30 * 60 * 1000;
 
 const getSortedSlots = (slots: string[]) =>
@@ -43,16 +41,6 @@ const getErrorMessage = (error: unknown, fallbackMessage: string) => {
 
 export default function FloorPlan({ onNavigate }: ScreenProps) {
   const { tables, isLoading: isTableLoading, fetchTables } = useTableStore();
-  const {
-    menuItems,
-    cart,
-    isLoading: isMenuLoading,
-    fetchMenuItems,
-    addToCart,
-    removeFromCart,
-    updateQuantity,
-    clearCart,
-  } = useFnBStore();
   const {
     selectedTable,
     selectedDate,
@@ -102,8 +90,7 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
 
   useEffect(() => {
     void fetchTables();
-    void fetchMenuItems();
-  }, [fetchMenuItems, fetchTables]);
+  }, [fetchTables]);
 
   useEffect(() => {
     let isActive = true;
@@ -137,8 +124,7 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
   const orderedSelectedSlots = getSortedSlots(selectedSlots);
   const durationHours = orderedSelectedSlots.length * 0.5;
   const totalPrice = selectedTable ? durationHours * selectedTable.hourlyRate : 0;
-  const cartTotal = cart.reduce((sum, entry) => sum + entry.quantity * entry.item.price, 0);
-  const grandTotal = totalPrice + cartTotal;
+  const grandTotal = totalPrice;
   const slotRangeLabel =
     orderedSelectedSlots.length > 0
       ? `${format(new Date(orderedSelectedSlots[0]), 'HH:mm')} - ${format(addMinutes(new Date(orderedSelectedSlots[orderedSelectedSlots.length - 1]), 30), 'HH:mm')}`
@@ -146,7 +132,6 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
 
   const poolTables = tables.filter((table) => table.type === 'Pool');
   const otherTables = tables.filter((table) => table.type !== 'Pool');
-  const featuredMenuItems = menuItems.slice(0, 4);
 
   const handleSelectTable = (tableId: number) => {
     const table = tables.find((item) => item.id === tableId);
@@ -218,15 +203,11 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
         bookingDate: format(selectedDate, 'yyyy-MM-dd'),
         startTime: format(startSlot, 'HH:mm'),
         endTime: format(endSlot, 'HH:mm'),
-        fnBOrders: cart.map(({ menuItemId, quantity }) => ({
-          menuItemId,
-          quantity,
-        })),
+        fnBOrders: [],
       });
 
       setBookingSuccess(response.message || 'Đặt bàn thành công.');
       clearBooking();
-      clearCart();
       onNavigate('bookingHistory');
     } catch (error) {
       setBookingError(getErrorMessage(error, 'Không thể tạo lượt đặt ngay lúc này. Vui lòng thử lại.'));
@@ -399,83 +380,6 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
             <div className="absolute bottom-[-10%] right-[-5%] h-64 w-64 rounded-full bg-primary/5 blur-3xl"></div>
             <div className="absolute left-[-5%] top-[-10%] h-64 w-64 rounded-full bg-tertiary/5 blur-3xl"></div>
           </section>
-
-          <section className="space-y-6">
-            <div className="flex items-center justify-between">
-              <h3 className="text-2xl font-bold font-headline tracking-tight">Dịch vụ Atelier</h3>
-              <div className="flex items-center gap-3">
-                <span className="text-xs font-bold uppercase tracking-widest text-secondary">Thực đơn đặt trước</span>
-                <div className="relative h-6 w-12 rounded-full bg-surface-container-highest p-1">
-                  <div className="absolute left-1 top-1 h-4 w-4 rounded-full bg-primary"></div>
-                </div>
-              </div>
-            </div>
-
-            {isMenuLoading ? (
-              <div className="rounded-xl bg-surface-container-low p-6 text-sm text-secondary">Đang tải thực đơn F&B...</div>
-            ) : featuredMenuItems.length === 0 ? (
-              <div className="rounded-xl bg-surface-container-low p-6 text-sm text-secondary">Chưa có món nào khả dụng.</div>
-            ) : (
-              <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-                {featuredMenuItems.map((item) => {
-                  const cartEntry = cart.find((entry) => entry.menuItemId === item.id);
-
-                  return (
-                    <div
-                      key={item.id}
-                      className="group flex items-center gap-6 rounded-xl bg-surface-container-low p-6 transition-all hover:bg-surface-container-high"
-                    >
-                      <img
-                        className="h-20 w-20 rounded-lg object-cover grayscale transition-all group-hover:grayscale-0"
-                        alt={item.name}
-                        src={item.imageUrl || DEFAULT_MENU_IMAGE}
-                        referrerPolicy="no-referrer"
-                      />
-                      <div className="flex-1 space-y-3">
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <h4 className="text-lg font-bold font-headline">{item.name}</h4>
-                            <p className="text-xs font-body text-secondary">{item.description || item.category}</p>
-                          </div>
-                          <span className="font-bold text-primary">${item.price.toFixed(2)}</span>
-                        </div>
-                        <div className="flex items-center justify-between gap-3">
-                          <button
-                            type="button"
-                            onClick={() => addToCart(item)}
-                            className="rounded-full border border-primary/20 px-4 py-2 text-xs font-bold uppercase tracking-widest text-primary transition-colors hover:bg-primary hover:text-on-primary"
-                          >
-                            {cartEntry ? 'Thêm nữa' : 'Thêm vào đơn'}
-                          </button>
-                          {cartEntry && (
-                            <div className="flex items-center gap-2">
-                              <button
-                                type="button"
-                                onClick={() => updateQuantity(item.id, cartEntry.quantity - 1)}
-                                className="h-8 w-8 rounded-full bg-surface-container-high text-sm font-bold text-on-surface transition-colors hover:bg-surface-container-highest"
-                                aria-label={`Giảm số lượng ${item.name}`}
-                              >
-                                -
-                              </button>
-                              <span className="min-w-6 text-center text-sm font-bold">{cartEntry.quantity}</span>
-                              <button
-                                type="button"
-                                onClick={() => updateQuantity(item.id, cartEntry.quantity + 1)}
-                                className="h-8 w-8 rounded-full bg-primary text-sm font-bold text-on-primary transition-colors hover:bg-primary-container"
-                                aria-label={`Tăng số lượng ${item.name}`}
-                              >
-                                +
-                              </button>
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </section>
         </div>
 
         <aside className="space-y-8 lg:col-span-4">
@@ -504,7 +408,7 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
                         {selectedTable.tableNumber} • {getTableTypeLabel(selectedTable.type)}
                       </p>
                       <p className="text-xs uppercase tracking-widest text-secondary">
-                        {getTableStatusLabel(selectedTable.status)} • ${selectedTable.hourlyRate}/giờ
+                        {getTableStatusLabel(selectedTable.status)} • {formatCurrency(selectedTable.hourlyRate)}/giờ
                       </p>
                     </div>
                   ) : (
@@ -589,53 +493,15 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-[10px] font-bold uppercase tracking-widest text-secondary">F&B đã chọn</label>
-                <div className="rounded-lg bg-surface-container-lowest p-4">
-                  {cart.length === 0 ? (
-                    <p className="text-sm text-secondary">Thêm đồ ăn hoặc nước uống từ Atelier để gửi cùng lượt đặt.</p>
-                  ) : (
-                    <div className="space-y-3">
-                      {cart.map((entry) => (
-                        <div key={entry.menuItemId} className="flex items-center justify-between gap-3">
-                          <div className="min-w-0 flex-1">
-                            <p className="truncate text-sm font-bold">{entry.item.name}</p>
-                            <p className="text-xs text-secondary">
-                              {entry.quantity} x ${entry.item.price.toFixed(2)}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-bold">
-                              ${(entry.quantity * entry.item.price).toFixed(2)}
-                            </span>
-                            <button
-                              type="button"
-                              onClick={() => removeFromCart(entry.menuItemId)}
-                              className="rounded-full px-2 py-1 text-[10px] font-bold uppercase tracking-widest text-secondary transition-colors hover:bg-secondary/10 hover:text-on-surface"
-                            >
-                              Xóa
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                      <div className="flex items-center justify-between border-t border-outline-variant/10 pt-3">
-                        <span className="text-sm text-secondary">Tạm tính F&B</span>
-                        <span className="font-bold">${cartTotal.toFixed(2)}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
-
               <div className="space-y-4 pt-4">
                 <div className="flex items-end justify-between border-b border-outline-variant/10 pb-4">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-secondary">Tổng tạm tính</p>
-                    <p className="text-3xl font-black font-headline text-on-background">${grandTotal.toFixed(2)}</p>
+                    <p className="text-3xl font-black font-headline text-on-background">{formatCurrency(grandTotal)}</p>
                   </div>
                   <div className="text-right text-[10px] text-secondary">
-                    <p>{selectedTable ? `${selectedTable.hourlyRate}/giờ` : 'Chọn bàn để tính giá'}</p>
-                    <p>Bàn: ${totalPrice.toFixed(2)} • F&B: ${cartTotal.toFixed(2)}</p>
+                    <p>{selectedTable ? `${formatCurrency(selectedTable.hourlyRate)}/giờ` : 'Chọn bàn để tính giá'}</p>
+                    <p>Bàn: {formatCurrency(totalPrice)}</p>
                   </div>
                 </div>
 

@@ -1,22 +1,58 @@
 import React, { useEffect, useState } from 'react';
 import { format, addDays, startOfWeek } from 'date-fns';
 import { useCoachStore } from '../stores/coachStore';
+import { useTableStore } from '../stores/tableStore';
+import { useAuthStore } from '../stores/authStore';
 import { ScreenProps } from '../types';
 import CustomerLayout from '../components/layout/CustomerLayout';
+import { formatCurrency } from '../utils/formatCurrency';
 
 export default function Coaches({ onNavigate }: ScreenProps) {
-  const { coaches, fetchCoaches, selectedCoach, setSelectedCoach, availability, fetchAvailability } = useCoachStore();
+  const {
+    coaches, fetchCoaches,
+    selectedCoach, setSelectedCoach,
+    availability, fetchAvailability,
+    selectedSlot, setSelectedSlot,
+    bookCoach, isBooking,
+  } = useCoachStore();
+  const { tables, fetchTables } = useTableStore();
+  const isAuthenticated = useAuthStore(s => s.isAuthenticated);
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
+  const [selectedTableId, setSelectedTableId] = useState<number | ''>('');
+  const [bookingFeedback, setBookingFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     fetchCoaches();
-  }, [fetchCoaches]);
+    fetchTables();
+  }, [fetchCoaches, fetchTables]);
 
   useEffect(() => {
     if (selectedCoach && selectedDate) {
       fetchAvailability(selectedCoach.id, format(selectedDate, 'yyyy-MM-dd'));
+      setBookingFeedback(null);
     }
   }, [selectedCoach, selectedDate, fetchAvailability]);
+
+  const bookableTables = tables.filter(t => t.status !== 'Maintenance');
+
+  const handleConfirmBooking = async () => {
+    if (!selectedCoach || !selectedSlot || !selectedTableId) return;
+    if (!isAuthenticated) {
+      setBookingFeedback({ type: 'error', message: 'Bạn cần đăng nhập để đặt lịch.' });
+      onNavigate?.('login');
+      return;
+    }
+    const result = await bookCoach({
+      tableId: Number(selectedTableId),
+      bookingDate: format(selectedDate, 'yyyy-MM-dd'),
+      startTime: selectedSlot.startTime,
+      endTime: selectedSlot.endTime,
+    });
+    setBookingFeedback({ type: result.success ? 'success' : 'error', message: result.message });
+    if (result.success) {
+      setSelectedTableId('');
+    }
+  };
 
   return (
     <CustomerLayout onNavigate={onNavigate} activeScreen="coaches">
@@ -73,7 +109,7 @@ export default function Coaches({ onNavigate }: ScreenProps) {
                     </div>
                     <div className="text-right">
                       <span className="text-xs text-secondary uppercase font-bold block mb-1">Giá mỗi giờ</span>
-                      <span className="text-xl font-black text-primary">${coach.hourlyRate}</span>
+                      <span className="text-xl font-black text-primary">{formatCurrency(coach.hourlyRate)}</span>
                     </div>
                   </div>
                   <p className="text-secondary font-body text-sm leading-relaxed mb-8">{coach.bio}</p>
@@ -89,14 +125,14 @@ export default function Coaches({ onNavigate }: ScreenProps) {
         {/* Booking Interface Overlay */}
         {selectedCoach && (
         <section className="max-w-[1440px] mx-auto px-8 mt-32">
-          <div className="bg-on-background text-white p-12 md:p-20 relative overflow-hidden flex flex-col md:flex-row gap-16 rounded-2xl">
+          <div className="bg-[#1C1C1C] text-white p-12 md:p-20 relative overflow-hidden flex flex-col items-center md:flex-row gap-16 rounded-xl shadow-2xl">
             <div className="flex-1 relative z-10">
-              <h2 className="text-5xl font-extrabold tracking-tighter mb-8 font-headline">Lịch <span className="text-primary">trực tuyến.</span></h2>
-              <p className="text-stone-400 font-body mb-12 text-lg">Chọn một ngày để xem giờ rảnh của huấn luyện viên {selectedCoach.fullName}.</p>
+              <h2 className="text-5xl font-extrabold tracking-tighter mb-6 font-headline">Lịch <span className="text-primary">trực tuyến.</span></h2>
+              <p className="text-stone-400 font-body mb-12 text-sm leading-relaxed max-w-sm">Chọn một khung giờ để đặt buổi tập huấn của bạn. Các buổi học 1 kèm 1 hoặc lớp học nhóm nhỏ có sẵn hàng ngày.</p>
               
-              <div className="grid grid-cols-7 gap-2 mb-8">
+              <div className="grid grid-cols-7 gap-y-4 gap-x-2 mb-8 max-w-sm">
                 {['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'].map(d => (
-                  <div key={d} className="text-center text-[10px] font-bold text-stone-500 uppercase tracking-widest pb-4">{d}</div>
+                  <div key={d} className="text-center text-[10px] font-bold text-stone-600 uppercase tracking-widest">{d}</div>
                 ))}
                 
                 {Array.from({ length: 7 }).map((_, i) => {
@@ -106,7 +142,7 @@ export default function Coaches({ onNavigate }: ScreenProps) {
                     <div 
                       key={i} 
                       onClick={() => setSelectedDate(date)}
-                      className={`aspect-square flex items-center justify-center cursor-pointer text-sm rounded-md transition-colors ${isSelected ? 'bg-primary text-white font-bold' : 'bg-stone-900/50 hover:bg-primary/50'}`}>
+                      className={`aspect-square flex items-center justify-center cursor-pointer text-sm transition-all duration-300 font-medium ${isSelected ? 'bg-primary text-white font-bold shadow-[0_4px_14px_rgba(224,36,36,0.3)]' : 'text-stone-300 hover:text-primary'}`}>
                       {format(date, 'd')}
                     </div>
                   );
@@ -114,30 +150,71 @@ export default function Coaches({ onNavigate }: ScreenProps) {
               </div>
             </div>
 
-            <div className="w-full md:w-[400px] bg-white/5 backdrop-blur-md p-8 border border-white/5 relative z-10 rounded-xl">
-              <div className="flex items-center gap-4 mb-8 pb-8 border-b border-white/10">
-                <div className="w-12 h-12 rounded-full bg-primary flex items-center justify-center">
-                  <span className="material-symbols-outlined text-white">sports_score</span>
+            <div className="w-full md:w-[420px] bg-[#222222] p-8 border border-white/5 relative z-10 rounded-lg shadow-xl">
+              <div className="flex items-center gap-4 mb-6 pb-6 border-b border-white/5">
+                <div className="w-12 h-12 rounded-[10px] bg-primary flex items-center justify-center shadow-[0_4px_14px_rgba(224,36,36,0.2)]">
+                  <span className="material-symbols-outlined text-white text-xl">flag</span>
                 </div>
                 <div>
-                  <p className="text-xs text-stone-500 uppercase font-bold tracking-widest">HLV Đang chọn</p>
-                  <p className="font-headline font-bold">{selectedCoach.fullName}</p>     
+                  <p className="text-[10px] text-stone-500 uppercase font-bold tracking-widest mb-1">HLV Đang chọn</p>
+                  <p className="font-headline font-bold text-white text-base tracking-wide">{selectedCoach.fullName}</p>     
                 </div>
               </div>
-              <div className="space-y-4 mb-8 max-h-[300px] overflow-y-auto pr-2">
+              <div className="space-y-1 mb-6 max-h-[240px] overflow-y-auto pr-2">
                 {availability.length === 0 ? (
                   <p className="text-center text-sm text-stone-500 py-4">Không có giờ trống trong ngày này.</p>
                 ) : (
-                  availability.map((slot, i) => (
-                    <div key={i} className={`flex justify-between items-center p-3 rounded-md border ${slot.isAvailable ? 'border-primary/30 group cursor-pointer hover:bg-white/5' : 'border-transparent opacity-30 bg-stone-900/50'}`}>
-                      <span className="text-sm font-medium">{slot.startTime.substring(0, 5)} - {slot.endTime.substring(0, 5)}</span>
-                      <span className={`text-xs font-bold uppercase tracking-widest ${slot.isAvailable ? 'text-primary' : 'text-stone-400'}`}>
-                        {slot.isAvailable ? 'Sẵn sàng' : 'Đã Kín'}
-                      </span>
-                    </div>
-                  ))
+                  availability.map((slot, i) => {
+                    const isSelected = selectedSlot?.startTime === slot.startTime && selectedSlot?.endTime === slot.endTime;
+                    return (
+                      <div
+                        key={i}
+                        onClick={() => slot.isAvailable && setSelectedSlot(slot)}
+                        className={`flex justify-between items-center py-4 px-3 border-b border-white/5 last:border-0 transition-colors ${
+                          slot.isAvailable ? 'cursor-pointer group' : 'opacity-40'
+                        } ${isSelected ? 'bg-primary/20 border-primary/40' : ''}`}
+                      >
+                        <span className={`text-sm font-medium transition-colors ${slot.isAvailable ? 'text-stone-300 group-hover:text-white' : 'text-stone-500'} ${isSelected ? 'text-white' : ''}`}>
+                          {slot.startTime} - {slot.endTime}
+                        </span>
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${slot.isAvailable ? 'text-primary' : 'text-stone-500'}`}>
+                          {isSelected ? 'Đã chọn' : slot.isAvailable ? 'Sẵn sàng' : 'Đã Kín Chỗ'}
+                        </span>
+                      </div>
+                    );
+                  })
                 )}
               </div>
+
+              <div className="mb-4">
+                <label className="block text-[10px] uppercase font-bold tracking-widest text-stone-500 mb-2">Chọn bàn</label>
+                <select
+                  value={selectedTableId}
+                  onChange={e => setSelectedTableId(e.target.value ? Number(e.target.value) : '')}
+                  className="w-full bg-[#1C1C1C] text-stone-200 border border-white/10 rounded-sm px-3 py-3 text-sm focus:outline-none focus:border-primary"
+                >
+                  <option value="">— Chọn bàn —</option>
+                  {bookableTables.map(t => (
+                    <option key={t.id} value={t.id}>
+                      {t.tableNumber} · {t.type} · {formatCurrency(t.hourlyRate)}/h
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              {bookingFeedback && (
+                <div className={`mb-4 px-3 py-2 text-xs rounded-sm ${bookingFeedback.type === 'success' ? 'bg-green-900/40 text-green-300 border border-green-700/40' : 'bg-red-900/40 text-red-300 border border-red-700/40'}`}>
+                  {bookingFeedback.message}
+                </div>
+              )}
+
+              <button
+                onClick={handleConfirmBooking}
+                disabled={!selectedSlot || !selectedTableId || isBooking}
+                className="w-full bg-primary text-white py-4 font-label text-[11px] font-bold uppercase tracking-[0.15em] hover:bg-red-700 transition-colors rounded-sm shadow-[0_4px_14px_rgba(224,36,36,0.2)] disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                {isBooking ? 'Đang xử lý...' : 'Xác nhận đặt lịch'}
+              </button>
             </div>
           </div>
         </section>

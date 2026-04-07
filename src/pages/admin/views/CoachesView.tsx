@@ -6,6 +6,7 @@ import { ConfirmDialog } from '../components/ConfirmDialog';
 
 export const CoachesView = () => {
   const [coaches, setCoaches] = useState<any[]>([]);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
@@ -24,7 +25,14 @@ export const CoachesView = () => {
   const [formData, setFormData] = useState(initialForm);
 
   const loadData = () => {
-    adminService.getCoaches().then(data => setCoaches(data.items || data)).catch(e => console.error(e));
+    setLoadError(null);
+    adminService.getCoaches()
+      .then(data => setCoaches(Array.isArray(data) ? data : []))
+      .catch(e => {
+        console.error(e);
+        setLoadError(e?.response?.data?.message || e?.message || 'Không thể tải danh sách HLV.');
+        setCoaches([]);
+      });
   };
 
   useEffect(() => {
@@ -33,9 +41,13 @@ export const CoachesView = () => {
 
   const totalCoaches = coaches.length;
   const activeCoaches = coaches.filter(c => c.isActive).length;
-  const avgRating = totalCoaches ? (coaches.reduce((sum, c) => sum + c.rating, 0) / totalCoaches).toFixed(1) : '0';
-  const totalSessions = coaches.reduce((sum, c) => sum + (c.totalSessions || 0), 0);
-  const featuredCoach = coaches.length > 0 ? coaches.reduce((max, c) => c.rating > max.rating ? c : max, coaches[0]) : null;
+  const avgRating = totalCoaches
+    ? (coaches.reduce((sum, c) => sum + (Number(c.rating) || 0), 0) / totalCoaches).toFixed(1)
+    : '0';
+  const totalSessions = coaches.reduce((sum, c) => sum + (c.totalSessions ?? 0), 0);
+  const featuredCoach = coaches.length > 0
+    ? coaches.reduce((max, c) => (Number(c.rating) || 0) > (Number(max.rating) || 0) ? c : max, coaches[0])
+    : null;
 
   const openCreate = () => {
     setFormData(initialForm);
@@ -115,6 +127,12 @@ export const CoachesView = () => {
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-500">
+      {loadError && (
+        <div className="bg-red-50 border border-red-200 text-red-700 rounded-lg px-4 py-3 text-sm flex items-center justify-between">
+          <span>Lỗi tải dữ liệu HLV: {loadError}</span>
+          <button onClick={loadData} className="text-red-700 hover:text-red-900 font-medium underline">Thử lại</button>
+        </div>
+      )}
       {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-6">
         {[

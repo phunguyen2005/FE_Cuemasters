@@ -26,3 +26,4 @@ update tab-navigation
 update pill-buttons
 update breadcrumb-trails
 update pagination-controls
+update dropdown-menus

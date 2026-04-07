@@ -4,3 +4,4 @@ update header-nav
 update footer-links
 update sidebar-menu
 update typography-updates
+update color-palette

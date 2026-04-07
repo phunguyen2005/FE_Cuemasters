@@ -1,7 +1,13 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { adminService } from '../../../services/adminService';
-import { Plus, TrendingUp, TrendingDown, MoreVertical, Edit, AlertCircle, Clock, CheckCircle2, Calendar } from 'lucide-react';
-import { PERCENT_WIDTH_CLASS, PERCENT_HEIGHT_CLASS } from '../utils';
+import { TrendingUp, TrendingDown } from 'lucide-react';
+
+type RevenueStructureItem = {
+  label: string;
+  amount: number;
+  val: number;
+  color: string;
+};
 
 export const RevenueView = () => {
   const [stats, setStats] = useState<any>(null);
@@ -66,6 +72,37 @@ export const RevenueView = () => {
     ];
   }, [analytics]);
 
+  const revenueStructure = useMemo<RevenueStructureItem[]>(() => {
+    const fallback: RevenueStructureItem[] = [
+      { label: 'Tiền giờ chơi', amount: 0, val: 0, color: 'bg-primary' },
+      { label: 'Dịch vụ F&B', amount: 0, val: 0, color: 'bg-tertiary' },
+      { label: 'Huấn luyện viên', amount: 0, val: 0, color: 'bg-neutral-800' },
+    ];
+
+    if (!Array.isArray(analytics?.revenueBySource) || analytics.revenueBySource.length === 0) {
+      return fallback;
+    }
+
+    const colorByLabel: Record<string, string> = {
+      'Tiền giờ chơi': 'bg-primary',
+      'Dịch vụ F&B': 'bg-tertiary',
+      'Huấn luyện viên': 'bg-neutral-800',
+    };
+
+    const dynamic: RevenueStructureItem[] = analytics.revenueBySource.map((item: any, index: number): RevenueStructureItem => {
+      const defaultColor = fallback[index % fallback.length].color;
+
+      return {
+        label: item.label,
+        amount: Number(item.amount || 0),
+        val: Number(item.percentage || 0),
+        color: colorByLabel[item.label] || defaultColor,
+      };
+    });
+
+    return dynamic;
+  }, [analytics]);
+
   if (!stats || !analytics) return <div className="p-8 text-white">Đang tải...</div>;
 
   const maxRevenue = Math.max(...(analytics.revenueByPeriod?.map((p: any) => p.revenue) || [1]));
@@ -89,7 +126,7 @@ export const RevenueView = () => {
               <button
                 key={f.id}
                 onClick={() => setDateFilter(f.id as any)}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors \${dateFilter === f.id ? 'bg-primary text-white shadow' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'}`}
+                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${dateFilter === f.id ? 'bg-primary text-white shadow' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'}`}
               >
                 {f.label}
               </button>
@@ -131,18 +168,15 @@ export const RevenueView = () => {
         <div className="bg-surface-lowest p-6 rounded-2xl border border-neutral-100 shadow-sm">
           <h3 className="font-headline font-bold text-lg mb-6">Cơ cấu Doanh thu</h3>
           <div className="space-y-5">
-            {[
-              { label: 'Tiền giờ chơi', val: 65, color: 'bg-primary' },      
-              { label: 'Dịch vụ F&B', val: 25, color: 'bg-tertiary' },       
-              { label: 'Huấn luyện viên', val: 10, color: 'bg-neutral-800' },
-            ].map((item, i) => (
+            {revenueStructure.map((item, i) => (
               <div key={i}>
                 <div className="flex justify-between text-sm mb-2">
                   <span className="font-medium text-neutral-700">{item.label}</span>
-                  <span className="font-bold">{item.val}%</span>
+                  <span className="font-bold">{item.val.toFixed(2)}%</span>
                 </div>
+                <p className="text-xs text-neutral-500 mb-2">{item.amount.toLocaleString()}đ</p>
                 <div className="h-2 bg-surface-low rounded-full overflow-hidden">
-                  <div className={`h-full ${item.color}`} style={{ width: `${item.val}%` }}></div>
+                  <div className={`h-full ${item.color}`} style={{ width: `${Math.max(0, Math.min(item.val, 100))}%` }}></div>
                 </div>
               </div>
             ))}

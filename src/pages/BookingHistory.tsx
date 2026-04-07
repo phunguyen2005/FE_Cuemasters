@@ -1,12 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import CustomerLayout from '../components/layout/CustomerLayout';
-import { ScreenProps } from '../types';
+import { Booking, ScreenProps } from '../types';
 import { useBookingStore } from '../stores/bookingStore';
+import { bookingService } from '../services/bookingService';
 
 export default function BookingHistory({ onNavigate }: ScreenProps) {
   const { bookings, fetchBookings, isLoading, cancelBooking, totalItems, totalPages } = useBookingStore();
   const [filter, setFilter] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
+  const [targetBooking, setTargetBooking] = useState<Booking | null>(null);
+  const [isRescheduleOpen, setIsRescheduleOpen] = useState(false);
+  const [rescheduleDate, setRescheduleDate] = useState('');
+  const [rescheduleStartTime, setRescheduleStartTime] = useState('');
+  const [rescheduleEndTime, setRescheduleEndTime] = useState('');
+  const [isRescheduling, setIsRescheduling] = useState(false);
 
   useEffect(() => {
     void fetchBookings(currentPage, 10, filter || undefined);
@@ -24,6 +31,79 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
 
     await cancelBooking(bookingId);
     void fetchBookings(currentPage, 10, filter || undefined);
+  };
+
+  const formatDateInput = (date: Date) => {
+    const year = date.getFullYear();
+    const month = (date.getMonth() + 1).toString().padStart(2, '0');
+    const day = date.getDate().toString().padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  };
+
+  const formatTimeInput = (date: Date) => {
+    const hour = date.getHours().toString().padStart(2, '0');
+    const minute = date.getMinutes().toString().padStart(2, '0');
+    return `${hour}:${minute}`;
+  };
+
+  const openRescheduleModal = (booking: Booking) => {
+    const start = new Date(booking.startTime);
+    const end = new Date(booking.endTime);
+
+    setTargetBooking(booking);
+    setRescheduleDate(formatDateInput(start));
+    setRescheduleStartTime(formatTimeInput(start));
+    setRescheduleEndTime(formatTimeInput(end));
+    setIsRescheduleOpen(true);
+  };
+
+  const closeRescheduleModal = () => {
+    setIsRescheduleOpen(false);
+    setTargetBooking(null);
+  };
+
+  const isHalfHourStep = (time: string) => {
+    const minute = Number(time.split(':')[1]);
+    return minute === 0 || minute === 30;
+  };
+
+  const handleRescheduleSubmit = async () => {
+    if (!targetBooking) {
+      return;
+    }
+
+    if (!rescheduleDate || !rescheduleStartTime || !rescheduleEndTime) {
+      alert('Vui lòng nhập đầy đủ ngày và khung giờ mới.');
+      return;
+    }
+
+    if (rescheduleStartTime >= rescheduleEndTime) {
+      alert('Giờ kết thúc phải sau giờ bắt đầu.');
+      return;
+    }
+
+    if (!isHalfHourStep(rescheduleStartTime) || !isHalfHourStep(rescheduleEndTime)) {
+      alert('Khung giờ đổi lịch phải theo bước 30 phút (VD: 09:00, 09:30).');
+      return;
+    }
+
+    const payload = {
+      newStartTime: `${rescheduleDate}T${rescheduleStartTime}:00`,
+      newEndTime: `${rescheduleDate}T${rescheduleEndTime}:00`,
+    };
+
+    setIsRescheduling(true);
+    try {
+      await bookingService.rescheduleBooking(targetBooking.id, payload);
+      alert('Đổi lịch thành công.');
+      closeRescheduleModal();
+      await fetchBookings(currentPage, 10, filter || undefined);
+    } catch (error: any) {
+      const message = error?.response?.data?.message || error?.response?.data?.Message || 'Đổi lịch thất bại.';
+      alert(message);
+    } finally {
+      setIsRescheduling(false);
+    }
   };
 
   return (
@@ -103,6 +183,7 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
                 const endTime = new Date(booking.endTime);
                 const durationHours = (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60);
                 const isActive = booking.status === 'Confirmed' || booking.status === 'Pending';
+                const canReschedule = startTime.getTime() - Date.now() >= 2 * 60 * 60 * 1000;
 
                 return (
                   <div
@@ -157,11 +238,23 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
                       </button>
                       {isActive && (
                         <button
+                          onClick={() => openRescheduleModal(booking)}
+                          disabled={!canReschedule}
+                          className="w-full whitespace-nowrap rounded-full bg-secondary/10 px-6 py-3 text-center text-xs font-bold uppercase tracking-widest text-secondary transition-colors hover:bg-secondary/20 disabled:cursor-not-allowed disabled:opacity-50"
+                        >
+                          Đổi lịch
+                        </button>
+                      )}
+                      {isActive && (
+                        <button
                           onClick={() => void handleCancelBooking(booking.id)}
                           className="w-full whitespace-nowrap rounded-full bg-error/10 px-6 py-3 text-center text-xs font-bold uppercase tracking-widest text-error transition-colors hover:bg-error/20"
                         >
                           Hủy đặt
                         </button>
+                      )}
+                      {isActive && !canReschedule && (
+                        <p className="text-center text-xs text-secondary">Chỉ đổi lịch trước tối thiểu 2 giờ.</p>
                       )}
                     </div>
                   </div>
@@ -169,6 +262,68 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
               })
             )}
           </div>
+
+          {isRescheduleOpen && targetBooking && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+              <div className="w-full max-w-md rounded-2xl border border-outline-variant/30 bg-surface p-6 shadow-2xl">
+                <h2 className="text-xl font-bold font-headline">Đổi lịch đặt bàn</h2>
+                <p className="mt-1 text-sm text-secondary">Bàn {targetBooking.tableName}</p>
+
+                <div className="mt-5 space-y-4">
+                  <label className="block text-sm font-semibold text-on-surface">
+                    Ngày mới
+                    <input
+                      type="date"
+                      value={rescheduleDate}
+                      onChange={(e) => setRescheduleDate(e.target.value)}
+                      className="mt-1 w-full rounded-lg border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                    />
+                  </label>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block text-sm font-semibold text-on-surface">
+                      Giờ bắt đầu
+                      <input
+                        type="time"
+                        step={1800}
+                        value={rescheduleStartTime}
+                        onChange={(e) => setRescheduleStartTime(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                      />
+                    </label>
+                    <label className="block text-sm font-semibold text-on-surface">
+                      Giờ kết thúc
+                      <input
+                        type="time"
+                        step={1800}
+                        value={rescheduleEndTime}
+                        onChange={(e) => setRescheduleEndTime(e.target.value)}
+                        className="mt-1 w-full rounded-lg border border-outline-variant/30 bg-surface-container-lowest px-3 py-2 text-sm focus:border-primary focus:outline-none"
+                      />
+                    </label>
+                  </div>
+                </div>
+
+                <div className="mt-6 flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={closeRescheduleModal}
+                    className="rounded-full border border-outline-variant/40 px-4 py-2 text-sm font-bold text-secondary transition-colors hover:bg-surface-container-high"
+                  >
+                    Hủy
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleRescheduleSubmit()}
+                    disabled={isRescheduling}
+                    className="rounded-full bg-primary px-4 py-2 text-sm font-bold text-on-primary transition-colors hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {isRescheduling ? 'Đang xử lý...' : 'Xác nhận đổi lịch'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           <div className="flex items-center justify-center gap-3 pt-8">
             <button

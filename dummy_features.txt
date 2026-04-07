@@ -34,3 +34,4 @@ update drawer-overlays
 update sheet-animations
 update offcanvas-menus
 update backdrop-filters
+update avatar-components

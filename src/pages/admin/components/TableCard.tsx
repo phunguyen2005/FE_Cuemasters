@@ -1,6 +1,12 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Clock, Users } from 'lucide-react';
 import { AdminTable } from '../../../types';
+
+const formatElapsed = (minutes: number): string => {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+};
 
 export const TableCard = ({ 
   table, 
@@ -18,6 +24,14 @@ export const TableCard = ({
   const status = table.displayStatus;
   let statusColor = 'border-neutral-200';
   let badgeColor = 'bg-neutral-100 text-neutral-500';
+
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (status !== 'InUse' || !table.currentSessionStartedAt) return;
+    const interval = setInterval(() => setNow(Date.now()), 60000);
+    return () => clearInterval(interval);
+  }, [status, table.currentSessionStartedAt]);
 
   if (status === 'InUse') {
     statusColor = 'border-primary';
@@ -50,8 +64,20 @@ export const TableCard = ({
       <div className="space-y-2 mt-auto mb-4">
         <div className="flex justify-between text-sm">
           <span className="text-neutral-500 flex items-center gap-1"><Clock size={14} /> {status === 'Reserved' ? 'Giờ đặt' : 'Thời gian'}</span>
-          <span className="font-medium text-neutral-900">{table.currentSessionStartedAt ? new Date(table.currentSessionStartedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--"}</span>
+          <span className="font-medium text-neutral-900">
+             {status === 'Reserved' 
+               ? (table.nextBookingStartTime ? new Date(table.nextBookingStartTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--")
+               : (table.currentSessionStartedAt ? new Date(table.currentSessionStartedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--")}
+          </span>
         </div>
+        {status === 'InUse' && table.currentSessionStartedAt && (
+          <div className="flex justify-between text-sm">
+            <span className="text-neutral-500 flex items-center gap-1">Đã chơi</span>
+            <span className="font-bold text-primary">
+              {formatElapsed(Math.max(0, Math.floor((now - new Date(table.currentSessionStartedAt).getTime()) / 60000)))}
+            </span>
+          </div>
+        )}
         {table.currentCustomerName && (
           <div className="flex justify-between text-sm">
             <span className="text-neutral-500 flex items-center gap-1"><Users size={14} /> Khách</span>

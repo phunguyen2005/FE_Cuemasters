@@ -31,3 +31,4 @@ update accordion-panels
 update slider-components
 update dialog-boxes
 update drawer-overlays
+update sheet-animations

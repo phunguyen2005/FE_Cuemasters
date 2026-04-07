@@ -25,3 +25,4 @@ update progress-bars
 update tab-navigation
 update pill-buttons
 update breadcrumb-trails
+update pagination-controls

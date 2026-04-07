@@ -19,3 +19,4 @@ update badge-colors
 update tooltip-positioning
 update popover-logic
 update alert-messages
+update toast-notifications

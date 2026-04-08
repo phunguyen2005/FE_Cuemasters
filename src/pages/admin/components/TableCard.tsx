@@ -24,6 +24,8 @@ export const TableCard = ({
   onWalkin?: (table: AdminTable) => void
 }) => {
   const status = table.displayStatus;
+  const reservableBookingId = booking?.id ?? table.nextBookingId;
+  const customerName = status === 'Reserved' ? table.nextCustomerName : table.currentCustomerName;
   let statusColor = 'border-neutral-200';
   let badgeColor = 'bg-neutral-100 text-neutral-500';
 
@@ -80,10 +82,10 @@ export const TableCard = ({
             </span>
           </div>
         )}
-        {table.currentCustomerName && (
+        {customerName && (
           <div className="flex justify-between text-sm">
             <span className="text-neutral-500 flex items-center gap-1"><Users size={14} /> Khách</span>
-            <span className="font-medium text-neutral-900 truncate max-w-[100px]">{table.currentCustomerName}</span>
+            <span className="font-medium text-neutral-900 truncate max-w-[100px]">{customerName}</span>
           </div>
         )}
         {((table.currentSessionAmount ?? 0) > 0) && (
@@ -94,9 +96,9 @@ export const TableCard = ({
         )}
       </div>
 
-      {status === 'Reserved' && booking && (
+      {status === 'Reserved' && reservableBookingId && onCheckin && (
         <button 
-          onClick={(e) => { e.stopPropagation(); onCheckin?.(booking.id); }}
+          onClick={(e) => { e.stopPropagation(); onCheckin(reservableBookingId); }}
           className="mt-2 w-full py-2 bg-tertiary text-white rounded-lg font-bold text-sm hover:bg-tertiary/90 transition-colors"
         >
           Check-in Khách

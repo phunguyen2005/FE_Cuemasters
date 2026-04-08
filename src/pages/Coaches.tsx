@@ -178,6 +178,10 @@ export default function Coaches({ onNavigate }: ScreenProps) {
 
 
 
+              <div className="mb-4 rounded-sm border border-sky-500/20 bg-sky-500/10 px-3 py-3 text-xs text-sky-100">
+                Nhân viên sẽ gán bàn phù hợp khi bạn đến check-in. Bạn không cần chọn bàn trước trong bước đặt HLV.
+              </div>
+
               {bookingFeedback && (
                 <div className={`mb-4 px-3 py-2 text-xs rounded-sm ${bookingFeedback.type === 'success' ? 'bg-green-900/40 text-green-300 border border-green-700/40' : 'bg-red-900/40 text-red-300 border border-red-700/40'}`}>
                   {bookingFeedback.message}

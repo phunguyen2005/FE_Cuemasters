@@ -5,6 +5,7 @@ import { bookingService } from '../services/bookingService';
 interface BookingState {
   selectedCategory: TableType | null;
   categoryAvailability: CategoryAvailability | null;
+  availabilityError: string | null;
   selectedDate: Date;
   selectedSlots: string[];
   bookings: Booking[];
@@ -26,6 +27,7 @@ interface BookingState {
 export const useBookingStore = create<BookingState>((set) => ({
   selectedCategory: null,
   categoryAvailability: null,
+  availabilityError: null,
   selectedDate: new Date(),
   selectedSlots: [],
   bookings: [],
@@ -34,22 +36,30 @@ export const useBookingStore = create<BookingState>((set) => ({
   page: 1,
   pageSize: 10,
   totalPages: 0,
-  setSelectedCategory: (category) => set({ selectedCategory: category, selectedSlots: [], categoryAvailability: null }),
-  setSelectedDate: (date) => set({ selectedDate: date, selectedSlots: [], categoryAvailability: null }),
+  setSelectedCategory: (category) => set({ selectedCategory: category, selectedSlots: [], categoryAvailability: null, availabilityError: null }),
+  setSelectedDate: (date) => set({ selectedDate: date, selectedSlots: [], categoryAvailability: null, availabilityError: null }),
   toggleSlot: (slot) => set((state) => ({
     selectedSlots: state.selectedSlots.includes(slot) 
       ? state.selectedSlots.filter(s => s !== slot)
       : [...state.selectedSlots, slot].sort()
   })),
-  clearBooking: () => set({ selectedCategory: null, selectedSlots: [], categoryAvailability: null }),
+  clearBooking: () => set({ selectedCategory: null, selectedSlots: [], categoryAvailability: null, availabilityError: null }),
   
   fetchCategoryAvailability: async (category, date) => {
-    set({ isLoading: true });
+    set({ isLoading: true, availabilityError: null, categoryAvailability: null });
     try {
-      // Create local string copy like 'YYYY-MM-DD'
-      const dateString = date.toLocaleDateString('en-CA'); 
+      const dateString = [
+        date.getFullYear(),
+        `${date.getMonth() + 1}`.padStart(2, '0'),
+        `${date.getDate()}`.padStart(2, '0'),
+      ].join('-');
       const response = await bookingService.getCategoryAvailability(category, dateString);
       set({ categoryAvailability: response });
+    } catch {
+      set({
+        categoryAvailability: null,
+        availabilityError: 'Khong the tai khung gio trong luc nay. Vui long thu lai sau it phut.',
+      });
     } finally {
       set({ isLoading: false });
     }

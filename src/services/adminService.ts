@@ -1,5 +1,11 @@
 import api from './api';
-import { AdminTable } from '../types';
+import {
+  AdminMembershipPlan,
+  AdminTable,
+  AdminUpsertMembershipPlanRequest,
+  PendingCheckin,
+  UpcomingWarning,
+} from '../types';
 
 export const adminService = {
   getStats: (params?: { from?: string, to?: string }) => api.get('/admin/dashboard/stats', { params }).then(res => res.data),
@@ -16,16 +22,16 @@ export const adminService = {
   createFnBItem: (data: any) => api.post('/admin/fnb', data).then(res => res.data),
   updateFnBItem: (id: number, data: any) => api.put(`/admin/fnb/${id}`, data).then(res => res.data),
   deleteFnBItem: (id: number) => api.delete(`/admin/fnb/${id}`).then(res => res.data),
-  getMemberships: () => api.get('/admin/memberships').then(res => res.data),
-  createMembership: (data: any) => api.post('/admin/memberships', data).then(res => res.data),
-  updateMembership: (id: number, data: any) => api.put(`/admin/memberships/${id}`, data).then(res => res.data),
+  getMemberships: (): Promise<AdminMembershipPlan[]> => api.get<AdminMembershipPlan[]>('/admin/memberships').then(res => res.data),
+  createMembership: (data: AdminUpsertMembershipPlanRequest) => api.post('/admin/memberships', data).then(res => res.data),
+  updateMembership: (id: number, data: AdminUpsertMembershipPlanRequest) => api.put(`/admin/memberships/${id}`, data).then(res => res.data),
   deleteMembership: (id: number) => api.delete(`/admin/memberships/${id}`).then(res => res.data),
   getAnalytics: (params?: { from?: string, to?: string }) => api.get('/admin/analytics', { params }).then(res => res.data),
   checkinBooking: (id: string, data: { tableId: number }) => api.put(`/admin/bookings/${id}/checkin`, data).then(res => res.data),
   checkoutBooking: (id: string, data: { paymentMethod: string }) => api.put(`/admin/bookings/${id}/checkout`, data).then(res => res.data),
   startWalkIn: (tableId: number, data: { guestName: string }) => api.post(`/admin/tables/${tableId}/walkin`, data).then(res => res.data),
-  getPendingCheckins: (date: string) => api.get('/admin/bookings/pending-checkin', { params: { date } }).then(res => res.data),
-  getUpcomingWarnings: () => api.get('/admin/bookings/upcoming-warnings').then(res => res.data),
+  getPendingCheckins: (date: string): Promise<PendingCheckin[]> => api.get<PendingCheckin[]>('/admin/bookings/pending-checkin', { params: { date } }).then(res => res.data),
+  getUpcomingWarnings: (): Promise<UpcomingWarning[]> => api.get<UpcomingWarning[]>('/admin/bookings/upcoming-warnings').then(res => res.data),
   linkCoachSession: (id: string, data: { coachingSessionId: string }) => api.put(`/admin/bookings/${id}/link-coach-session`, data).then(res => res.data),
   getAvailableCoachSessions: (id: string) => api.get(`/admin/bookings/${id}/available-coach-sessions`).then(res => res.data),
 };

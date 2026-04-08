@@ -1,5 +1,5 @@
 import api from './api';
-import { MembershipPlan, UserMembership } from '../types';
+import { ApiMessageResponse, MembershipPlan, SubscribeMembershipRequest, UserMembership } from '../types';
 
 export const membershipService = {
   getPlans: async (): Promise<MembershipPlan[]> => {
@@ -21,20 +21,20 @@ export const membershipService = {
     }
   },
   
-  subscribe: async (planId: number): Promise<boolean> => {
+  subscribe: async (data: SubscribeMembershipRequest): Promise<UserMembership> => {
     try {
-      const response = await api.post('/memberships/subscribe', { planId });
-      return response.status === 200 || response.status === 204;
+      const response = await api.post<UserMembership>('/memberships/subscribe', data);
+      return response.data;
     } catch (error) {
       console.error("Failed to subscribe", error);
       throw error;
     }
   },
   
-  cancelAutoRenew: async (): Promise<boolean> => {
+  cancelAutoRenew: async (): Promise<ApiMessageResponse> => {
     try {
-      const response = await api.put('/memberships/my/cancel');
-      return response.status === 200 || response.status === 204;
+      const response = await api.put<ApiMessageResponse>('/memberships/my/cancel');
+      return response.data;
     } catch (error) {
       console.error("Failed to cancel auto renew", error);
       throw error;

@@ -1,18 +1,26 @@
 import React, { useState, useEffect } from 'react';
 import { adminService } from '../../../services/adminService';
-import { Clock, Users, Coffee } from 'lucide-react';
+import { Clock, Coffee } from 'lucide-react';
 import { TableCard } from '../components/TableCard';
 import { useSignalR } from '../../../hooks/useSignalR';
 import { useTableStore } from '../../../stores/tableStore';
 import { InSessionOrderPanel } from '../components/InSessionOrderPanel';
-import { AdminTable } from '../../../types';
+import { AdminTable, UpcomingWarning } from '../../../types';
 import { CheckoutPanel } from '../components/CheckoutPanel';
+
+const formatClockTime = (value?: string | null) => {
+  if (!value) return '--:--';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? value
+    : parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
 
 export const DashboardView = () => {
   const [stats, setStats] = useState<any>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [adminTables, setAdminTables] = useState<AdminTable[]>([]);
-  const [warnings, setWarnings] = useState<string[]>([]);
+  const [warnings, setWarnings] = useState<UpcomingWarning[]>([]);
   
   // Use global table store for tables to leverage SignalR
   const { tables: storeTables, fetchTables } = useTableStore();
@@ -58,7 +66,7 @@ export const DashboardView = () => {
 
 
 
-  const activeBookings = bookings.filter(b => b.status === 'Confirmed' || b.status === 'InProgress');
+  const inProgressBookings = bookings.filter(b => b.status === 'InProgress');
 
   const upcomingBookings = bookings
     .filter(b => b.status === 'Confirmed' && new Date(b.startTime) > new Date())
@@ -99,9 +107,9 @@ export const DashboardView = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-4 gap-4">
+            <div className="grid grid-cols-4 gap-4">
             {displayTables.map((table) => {
-              const booking = activeBookings.find(b => b.tableId === table.id && b.status === (table.displayStatus === 'Reserved' ? 'Confirmed' : 'InProgress'));
+              const booking = inProgressBookings.find(b => b.tableId === table.id);
               return (
                 <TableCard 
                   key={table.id} 
@@ -144,7 +152,9 @@ export const DashboardView = () => {
               <div className="space-y-3">
                 {warnings.map((w, i) => (
                   <div key={i} className="flex gap-3 p-3 rounded-lg bg-white border border-orange-100 shadow-sm">
-                    <p className="text-sm font-medium text-orange-800">{w}</p>
+                    <p className="text-sm font-medium text-orange-800">
+                      Bàn {w.tableNumber || w.tableId || 'chưa rõ'} ({w.category}) - còn {w.minutesRemaining} phút - khách {w.currentCustomerName || 'không rõ'} - hết lúc {formatClockTime(w.endsAt)}
+                    </p>
                   </div>
                 ))}
               </div>

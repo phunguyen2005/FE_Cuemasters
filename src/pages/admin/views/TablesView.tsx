@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { adminService } from '../../../services/adminService';
-import { Plus, Search, Edit, Trash2, Map, List, Clock, Users } from 'lucide-react';
+import { Plus, Search, Edit, Trash2, Map, List, Clock } from 'lucide-react';
 import { TableCard } from '../components/TableCard';
 import { AdminModal } from '../components/AdminModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
 import { InSessionOrderPanel } from '../components/InSessionOrderPanel';
 import { CheckoutPanel } from '../components/CheckoutPanel';
 import { WalkInModal } from '../components/WalkInModal';
-import { AdminTable, TableType, TableStatus } from '../../../types';
+import { AdminTable, PendingCheckin, TableType, TableStatus } from '../../../types';
 
 const LiveElapsedTime = ({ startTime }: { startTime: string }) => {
   const [elapsed, setElapsed] = useState('');
@@ -24,6 +24,14 @@ const LiveElapsedTime = ({ startTime }: { startTime: string }) => {
     return () => clearInterval(interval);
   }, [startTime]);
   return <span className="ml-2 px-1.5 py-0.5 rounded text-[10px] font-bold bg-neutral-100 text-neutral-600">{elapsed}</span>;
+};
+
+const formatClockTime = (value?: string | null) => {
+  if (!value) return '--:--';
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? value
+    : parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 };
 
 
@@ -45,8 +53,8 @@ export const TablesView = () => {
   const [checkoutBooking, setCheckoutBooking] = useState<{booking: any, table: AdminTable} | null>(null);
   const [walkInTable, setWalkInTable] = useState<AdminTable | null>(null);
   const [bookings, setBookings] = useState<any[]>([]);
-  const [pendingCheckins, setPendingCheckins] = useState<any[]>([]);
-  const [selectedPendingBooking, setSelectedPendingBooking] = useState<any>(null);
+  const [pendingCheckins, setPendingCheckins] = useState<PendingCheckin[]>([]);
+  const [selectedPendingBooking, setSelectedPendingBooking] = useState<PendingCheckin | null>(null);
   const [formData, setFormData] = useState({
     tableNumber: '',
     type: 'Pool' as TableType,
@@ -141,7 +149,7 @@ export const TablesView = () => {
     alert("Vui lòng check-in từ danh sách 'Khách Online Chờ Nhận Bàn'");
   };
 
-  const activeBookings = bookings.filter(b => b.status === 'Confirmed' || b.status === 'InProgress');
+  const inProgressBookings = bookings.filter(b => b.status === 'InProgress');
 
   return (
     <div className="p-8 space-y-6 animate-in fade-in duration-500">
@@ -150,15 +158,15 @@ export const TablesView = () => {
           <h2 className="text-xl font-headline font-bold text-amber-900 mb-4">Khách Online Chờ Nhận Bàn</h2>
           <div className="flex gap-4 overflow-x-auto pb-2">
             {pendingCheckins.map(pb => (
-              <div key={pb.id} className="min-w-[280px] bg-white p-4 rounded-xl border border-amber-200 shadow-sm">
+              <div key={pb.bookingId} className="min-w-[280px] bg-white p-4 rounded-xl border border-amber-200 shadow-sm">
                 <div className="flex justify-between items-start mb-2">
-                  <h4 className="font-bold text-neutral-900">{pb.guestName || pb.customerName || pb.user?.fullName}</h4>
+                  <h4 className="font-bold text-neutral-900">{pb.guestName || pb.userFullName || 'Khách online'}</h4>
                   <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase bg-amber-100 text-amber-700">
                     {pb.requestedTableType}
                   </span>
                 </div>
                 <div className="text-sm text-neutral-500 flex items-center gap-1 mb-4">
-                  <Clock size={14} /> Giờ: {pb.startTime} - {pb.endTime}
+                  <Clock size={14} /> Giờ: {formatClockTime(pb.startTime)} - {formatClockTime(pb.endTime)}
                 </div>
                 <button 
                   onClick={() => setSelectedPendingBooking(pb)}
@@ -267,7 +275,7 @@ export const TablesView = () => {
               <tbody>
                 {paginatedData.map(table => {
                   const status = table.displayStatus;
-                  const booking = activeBookings.find(b => b.tableId === table.id && b.status === (table.displayStatus === 'Reserved' ? 'Confirmed' : 'InProgress'));
+                  const booking = inProgressBookings.find(b => b.tableId === table.id);
                   let badge = "bg-neutral-100 text-neutral-600";
                   if (status === 'InUse') badge = 'bg-red-50 text-red-600';
                   else if (status === 'Available') badge = 'bg-teal-50 text-teal-600';
@@ -296,7 +304,7 @@ export const TablesView = () => {
                           </div>
                         ) : status === 'Reserved' ? (
                           <div className="flex flex-col">
-                            <span className="font-medium text-neutral-900">{booking?.account?.fullName || booking?.customerName || table.currentCustomerName || 'Khách'}</span>
+                            <span className="font-medium text-neutral-900">{table.nextCustomerName || 'Khách sắp tới'}</span>
                             <div className="flex items-center gap-1 text-xs text-amber-600 mt-1">
                               <Clock size={12} />
                               <span>Đặt lúc {table.nextBookingStartTime ? new Date(table.nextBookingStartTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '--:--'}</span>
@@ -355,7 +363,7 @@ export const TablesView = () => {
         ) : (
           <div className="grid grid-cols-4 gap-4 bg-neutral-50/50 p-6 rounded-2xl border border-neutral-100 mt-6">
             {adminTables.map((table) => {
-              const booking = activeBookings.find(b => b.tableId === table.id && b.status === (table.displayStatus === 'Reserved' ? 'Confirmed' : 'InProgress'));
+              const booking = inProgressBookings.find(b => b.tableId === table.id);
               return (
                 <TableCard 
                   key={table.id} 
@@ -460,14 +468,16 @@ export const TablesView = () => {
       />
       <AdminModal isOpen={!!selectedPendingBooking} onClose={() => setSelectedPendingBooking(null)} title="Phân bổ bàn cho khách">
         <div className="space-y-4">
-          <p className="text-sm text-neutral-600">Chọn bàn trống thuộc loại <strong>{selectedPendingBooking?.requestedTableType}</strong> để check-in cho khách <strong>{selectedPendingBooking?.guestName || selectedPendingBooking?.customerName || selectedPendingBooking?.user?.fullName}</strong>.</p>
+          <p className="text-sm text-neutral-600">Chọn bàn trống thuộc loại <strong>{selectedPendingBooking?.requestedTableType}</strong> để check-in cho khách <strong>{selectedPendingBooking?.guestName || selectedPendingBooking?.userFullName || 'Khách online'}</strong>.</p>
           <div className="grid grid-cols-3 gap-3">
             {adminTables.filter(t => t.displayStatus === 'Available' && t.type === selectedPendingBooking?.requestedTableType).map(t => (
               <button 
                 key={t.id}
                 onClick={async () => {
+                  const bookingId = selectedPendingBooking?.bookingId;
+                  if (!bookingId) return;
                   try {
-                    await adminService.checkinBooking(selectedPendingBooking.id, { tableId: t.id });
+                    await adminService.checkinBooking(bookingId, { tableId: t.id });
                     alert('Check-in thành công!');
                     setSelectedPendingBooking(null);
                     loadData();

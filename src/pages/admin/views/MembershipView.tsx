@@ -1,231 +1,463 @@
-import React, { useState, useEffect } from 'react';
-import { adminService } from '../../../services/adminService';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Plus, X } from 'lucide-react';
+import { adminService } from '../../../services/adminService';
+import { AdminMembershipPlan, AdminUpsertMembershipPlanRequest } from '../../../types';
+import { formatCurrency } from '../../../utils/formatCurrency';
+
+const EMPTY_FORM: AdminUpsertMembershipPlanRequest = {
+  tier: 'Free',
+  name: '',
+  monthlyPrice: 0,
+  tableDiscountPercent: 0,
+  priorityBooking: false,
+  freeCoachingSessionsPerMonth: 0,
+  maxAdvanceBookingDays: 0,
+  isActive: true,
+};
+
+const getAdvanceWindowLabel = (days: number) => {
+  if (days <= 0) return 'Trong ngay';
+  if (days === 1) return '1 ngay';
+  return `${days} ngay`;
+};
+
+const getErrorMessage = (error: unknown, fallbackMessage: string) => {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    (typeof (error as any).response?.data?.message === 'string' ||
+      typeof (error as any).response?.data?.Message === 'string')
+  ) {
+    return (
+      (error as any).response?.data?.message ||
+      (error as any).response?.data?.Message ||
+      fallbackMessage
+    );
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallbackMessage;
+};
 
 export const MembershipView = () => {
-  const [plans, setPlans] = useState<any[]>([]);
+  const [plans, setPlans] = useState<AdminMembershipPlan[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [isEditing, setIsEditing] = useState(false);
-  const [formData, setFormData] = useState<any>({
-    name: '',
-    tier: 'Basic',
-    monthlyPrice: 0,
-    tableDiscountPercent: 0,
-    freeCoachingSessionsPerMonth: 0,
-    priorityBooking: false,
-    isActive: true
-  });
+  const [editingPlanId, setEditingPlanId] = useState<number | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [notice, setNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(
+    null,
+  );
+  const [formData, setFormData] = useState<AdminUpsertMembershipPlanRequest>(EMPTY_FORM);
 
-  const fetchPlans = () => {
-    adminService.getMemberships().then(data => setPlans(data.items || data)).catch(e => console.error(e));
+  const totalSubscribers = useMemo(
+    () => plans.reduce((sum, plan) => sum + plan.activeSubscribers, 0),
+    [plans],
+  );
+
+  const fetchPlans = async () => {
+    setIsLoading(true);
+    try {
+      const data = await adminService.getMemberships();
+      setPlans(Array.isArray(data) ? data : []);
+    } catch (error) {
+      setNotice({
+        type: 'error',
+        message: getErrorMessage(error, 'Khong the tai danh sach goi thanh vien.'),
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   useEffect(() => {
-    fetchPlans();
+    void fetchPlans();
   }, []);
 
-  const handleOpenModal = (plan?: any) => {
+  const handleOpenModal = (plan?: AdminMembershipPlan) => {
     if (plan) {
-      setFormData({ ...plan });
-      setIsEditing(true);
-    } else {
+      setEditingPlanId(plan.id);
       setFormData({
-        name: '',
-        tier: 'Basic',
-        monthlyPrice: 0,
-        tableDiscountPercent: 0,
-        freeCoachingSessionsPerMonth: 0,
-        priorityBooking: false,
-        isActive: true
+        tier: plan.tier,
+        name: plan.name,
+        monthlyPrice: plan.monthlyPrice,
+        tableDiscountPercent: plan.tableDiscountPercent,
+        priorityBooking: plan.priorityBooking,
+        freeCoachingSessionsPerMonth: plan.freeCoachingSessionsPerMonth,
+        maxAdvanceBookingDays: plan.maxAdvanceBookingDays,
+        isActive: plan.isActive,
       });
-      setIsEditing(false);
+    } else {
+      setEditingPlanId(null);
+      setFormData(EMPTY_FORM);
     }
+
+    setNotice(null);
     setIsModalOpen(true);
   };
 
   const handleCloseModal = () => {
     setIsModalOpen(false);
+    setEditingPlanId(null);
+    setFormData(EMPTY_FORM);
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setIsLoading(true);
+    setNotice(null);
+
     try {
-      if (isEditing) {
-        await adminService.updateMembership(formData.id, formData);
+      if (editingPlanId !== null) {
+        await adminService.updateMembership(editingPlanId, formData);
+        setNotice({ type: 'success', message: 'Da cap nhat goi thanh vien.' });
       } else {
         await adminService.createMembership(formData);
+        setNotice({ type: 'success', message: 'Da tao goi thanh vien moi.' });
       }
-      setIsModalOpen(false);
-      fetchPlans();
-    } catch (e) {
-      console.error(e);
-      alert('Có lỗi xảy ra khi lưu thẻ thành viên');
+
+      handleCloseModal();
+      await fetchPlans();
+    } catch (error) {
+      setNotice({
+        type: 'error',
+        message: getErrorMessage(error, 'Co loi xay ra khi luu goi thanh vien.'),
+      });
+      setIsLoading(false);
     }
   };
 
-  const handleDelete = async (id: number) => {
-    if (confirm('Bạn có chắc chắn muốn xóa gói thành viên này không?')) {
-      try {
-        await adminService.deleteMembership(id);
-        fetchPlans();
-      } catch (e) {
-        console.error(e);
-        alert('Có lỗi xảy ra khi xóa thẻ thành viên');
-      }
+  const handleDelete = async (plan: AdminMembershipPlan) => {
+    const confirmed = window.confirm(
+      `Ban co chac chan muon xoa goi ${plan.name}? Neu con subscriber active, backend se chi deactive plan.`,
+    );
+    if (!confirmed) return;
+
+    setIsLoading(true);
+    setNotice(null);
+
+    try {
+      const response = await adminService.deleteMembership(plan.id);
+      setNotice({
+        type: 'success',
+        message: response?.message || 'Da xu ly thao tac xoa goi thanh vien.',
+      });
+      await fetchPlans();
+    } catch (error) {
+      setNotice({
+        type: 'error',
+        message: getErrorMessage(error, 'Co loi xay ra khi xoa goi thanh vien.'),
+      });
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="p-8 text-neutral-900 animate-in fade-in duration-500 relative">
-      <div className="flex justify-between items-center mb-8">
-        <h2 className="text-xl font-bold font-headline">Gói thành viên</h2>     
-        <button 
+    <div className="animate-in fade-in duration-500 p-8 text-neutral-900">
+      <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+        <div className="space-y-3">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
+            Membership Admin
+          </p>
+          <h2 className="text-3xl font-black font-headline tracking-tight">
+            Quan ly catalog goi thanh vien
+          </h2>
+          <p className="max-w-4xl text-sm leading-7 text-neutral-500">
+            Data model membership luu 3 lop: MembershipPlan, UserMembership, va
+            MembershipBenefitUsage. Hien tai booking flow chi dang enforce giam gia ban va
+            maxAdvanceBookingDays. PriorityBooking va free coaching sessions van duoc luu
+            trong plan nhung chua co automation service.
+          </p>
+        </div>
+
+        <button
           onClick={() => handleOpenModal()}
-          className="bg-primary text-black px-4 py-2 rounded-full font-medium hover:bg-primary/90 transition-colors flex items-center gap-2">
+          className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold uppercase tracking-[0.14em] text-white transition-colors hover:bg-primary-container"
+        >
           <Plus size={18} />
-          Thêm gói mới
+          Them goi moi
         </button>
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        {plans.map((plan: any) => (
-          <div key={plan.id} className="bg-surface-lowest border border-neutral-200 rounded-2xl p-6 shadow-sm hover:border-primary/50 transition-colors">       
-            <div className="flex justify-between items-start mb-4">
-              <div>
-                <h3 className="font-bold text-lg">{plan.name}</h3>
-                <span className={`inline-block px-2 py-1 rounded text-xs font-medium mt-2 ${plan.isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
-                  {plan.isActive ? 'Đang hoạt động' : 'Đã ẩn'}
-                </span>
-              </div>
-              <p className="text-primary font-bold text-xl">{plan.monthlyPrice.toLocaleString()}đ<span className="text-sm text-neutral-500 font-normal">/tháng</span></p>
-            </div>
+      {notice && (
+        <div
+          className={`mb-6 rounded-2xl border px-4 py-3 text-sm ${
+            notice.type === 'success'
+              ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+              : 'border-red-200 bg-red-50 text-red-700'
+          }`}
+        >
+          {notice.message}
+        </div>
+      )}
 
-            <div className="space-y-3 mb-6">
-              <div className="flex justify-between text-sm">
-                <span className="text-neutral-500">Tier:</span>        
-                <span className="font-medium">{plan.tier}</span>   
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-neutral-500">Người đăng ký:</span>        
-                <span className="font-medium">{plan.activeSubscribers}</span>   
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-neutral-500">Giảm giá bàn:</span>
-                <span className="font-medium">{plan.tableDiscountPercent}%</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-neutral-500">Hỗ trợ HLV miễn phí:</span>  
-                <span className="font-medium">{plan.freeCoachingSessionsPerMonth} buổi/tháng</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-neutral-500">Ưu tiên đặt bàn:</span>      
-                <span className="font-medium">{plan.priorityBooking ? 'Có' : 'Không'}</span>
-              </div>
-            </div>
-
-            <div className="flex gap-2 pt-4 border-t border-neutral-100">       
-              <button 
-                onClick={() => handleOpenModal(plan)}
-                className="flex-1 bg-surface-low hover:bg-neutral-200 py-2 rounded-xl text-sm font-medium transition-colors">Sửa</button>
-              <button 
-                onClick={() => handleDelete(plan.id)}
-                className="flex-1 bg-red-50 text-red-600 hover:bg-red-100 py-2 rounded-xl text-sm font-medium transition-colors">Xóa</button>
-            </div>
-          </div>
-        ))}
+      <div className="mb-6 grid gap-4 md:grid-cols-3">
+        <div className="rounded-2xl border border-neutral-100 bg-surface-lowest p-6 shadow-sm">
+          <p className="text-sm font-medium text-neutral-500">Tong so goi</p>
+          <p className="mt-2 text-3xl font-black font-headline text-on-background">{plans.length}</p>
+        </div>
+        <div className="rounded-2xl border border-neutral-100 bg-surface-lowest p-6 shadow-sm">
+          <p className="text-sm font-medium text-neutral-500">Goi dang active</p>
+          <p className="mt-2 text-3xl font-black font-headline text-tertiary">
+            {plans.filter((plan) => plan.isActive).length}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-neutral-100 bg-surface-lowest p-6 shadow-sm">
+          <p className="text-sm font-medium text-neutral-500">Subscriber dang hoat dong</p>
+          <p className="mt-2 text-3xl font-black font-headline text-primary">{totalSubscribers}</p>
+        </div>
       </div>
 
+      {plans.length === 0 && !isLoading ? (
+        <div className="rounded-2xl border border-neutral-200 bg-surface-lowest p-10 text-center text-sm text-neutral-500">
+          Chua co goi thanh vien nao.
+        </div>
+      ) : (
+        <div className="grid gap-6 xl:grid-cols-3">
+          {plans.map((plan) => (
+            <article
+              key={plan.id}
+              className="rounded-3xl border border-neutral-200 bg-surface-lowest p-6 shadow-sm transition-colors hover:border-primary/30"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="rounded-full bg-surface-low px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-600">
+                      {plan.tier}
+                    </span>
+                    <span
+                      className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${
+                        plan.isActive
+                          ? 'bg-emerald-50 text-emerald-700'
+                          : 'bg-red-50 text-red-700'
+                      }`}
+                    >
+                      {plan.isActive ? 'Dang hoat dong' : 'Tam an'}
+                    </span>
+                  </div>
+                  <h3 className="mt-4 text-2xl font-black font-headline text-on-background">
+                    {plan.name}
+                  </h3>
+                </div>
+
+                <div className="text-right">
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-neutral-500">
+                    Gia/thang
+                  </p>
+                  <p className="mt-2 text-2xl font-black text-primary">
+                    {formatCurrency(plan.monthlyPrice)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-6 grid gap-3 text-sm">
+                <div className="flex items-center justify-between rounded-2xl bg-surface-low px-4 py-3">
+                  <span className="text-neutral-500">Active subscribers</span>
+                  <strong>{plan.activeSubscribers}</strong>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl bg-surface-low px-4 py-3">
+                  <span className="text-neutral-500">Table discount</span>
+                  <strong>{plan.tableDiscountPercent}%</strong>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl bg-surface-low px-4 py-3">
+                  <span className="text-neutral-500">Dat truoc</span>
+                  <strong>{getAdvanceWindowLabel(plan.maxAdvanceBookingDays)}</strong>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl bg-surface-low px-4 py-3">
+                  <span className="text-neutral-500">Free coaching</span>
+                  <strong>{plan.freeCoachingSessionsPerMonth} buoi/thang</strong>
+                </div>
+                <div className="flex items-center justify-between rounded-2xl bg-surface-low px-4 py-3">
+                  <span className="text-neutral-500">Priority booking</span>
+                  <strong>{plan.priorityBooking ? 'Bat' : 'Tat'}</strong>
+                </div>
+              </div>
+
+              <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-6 text-amber-800">
+                Luu y: goi hien co luu free coaching sessions va priority booking trong data
+                model, nhung backend chua tu dong tru quota hoac tang uu tien o booking flow.
+              </div>
+
+              <div className="mt-6 flex gap-3 border-t border-neutral-100 pt-4">
+                <button
+                  onClick={() => handleOpenModal(plan)}
+                  className="flex-1 rounded-xl bg-surface-low py-3 text-sm font-bold transition-colors hover:bg-neutral-200"
+                >
+                  Sua
+                </button>
+                <button
+                  onClick={() => handleDelete(plan)}
+                  className="flex-1 rounded-xl bg-red-50 py-3 text-sm font-bold text-red-600 transition-colors hover:bg-red-100"
+                >
+                  Xoa
+                </button>
+              </div>
+            </article>
+          ))}
+        </div>
+      )}
+
       {isModalOpen && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-white rounded-2xl p-6 w-full max-w-md">
-            <div className="flex justify-between items-center mb-4">
-              <h3 className="font-bold text-lg">{isEditing ? 'Sửa gói thành viên' : 'Thêm gói thành viên'}</h3>
-              <button onClick={handleCloseModal} className="text-neutral-500 hover:text-black">
-                <X size={20} />
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-xl rounded-3xl bg-white p-6 shadow-2xl">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
+                  {editingPlanId !== null ? 'Cap nhat plan' : 'Tao plan moi'}
+                </p>
+                <h3 className="mt-2 text-2xl font-black font-headline text-on-background">
+                  {editingPlanId !== null ? 'Sua goi thanh vien' : 'Them goi thanh vien'}
+                </h3>
+              </div>
+              <button
+                onClick={handleCloseModal}
+                className="rounded-full bg-surface-low p-2 text-neutral-500 transition-colors hover:text-black"
+              >
+                <X size={18} />
               </button>
             </div>
-            
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-1">Tên gói</label>
-                <input 
-                  type="text" 
-                  value={formData.name} 
-                  onChange={e => setFormData({...formData, name: e.target.value})} 
-                  className="w-full border rounded-lg p-2" 
-                  required 
+
+            <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
+              <div className="md:col-span-2">
+                <label className="mb-1 block text-sm font-medium text-neutral-700">Ten goi</label>
+                <input
+                  type="text"
+                  value={formData.name}
+                  onChange={(event) => setFormData({ ...formData, name: event.target.value })}
+                  className="w-full rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none"
+                  required
                 />
               </div>
-              
+
               <div>
-                <label className="block text-sm font-medium mb-1">Tier</label>
+                <label className="mb-1 block text-sm font-medium text-neutral-700">Tier</label>
                 <select
                   value={formData.tier}
-                  onChange={e => setFormData({...formData, tier: e.target.value})} 
-                  className="w-full border rounded-lg p-2"
+                  onChange={(event) =>
+                    setFormData({
+                      ...formData,
+                      tier: event.target.value as AdminUpsertMembershipPlanRequest['tier'],
+                    })
+                  }
+                  className="w-full rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none"
                 >
-                  <option value="Basic">Basic</option>
-                  <option value="Premium">Premium</option>
-                  <option value="VIP">VIP</option>
+                  <option value="Free">Free</option>
+                  <option value="Silver">Silver</option>
+                  <option value="Gold">Gold</option>
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Giá mỗi tháng</label>
-                <input 
-                  type="number" 
-                  value={formData.monthlyPrice} 
-                  onChange={e => setFormData({...formData, monthlyPrice: Number(e.target.value)})} 
-                  className="w-full border rounded-lg p-2" 
-                  required 
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium mb-1">Giảm giá bàn (%)</label>
-                <input 
-                  type="number" 
-                  value={formData.tableDiscountPercent} 
-                  onChange={e => setFormData({...formData, tableDiscountPercent: Number(e.target.value)})} 
-                  className="w-full border rounded-lg p-2" 
-                  required 
+                <label className="mb-1 block text-sm font-medium text-neutral-700">
+                  Gia moi thang
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={formData.monthlyPrice}
+                  onChange={(event) =>
+                    setFormData({ ...formData, monthlyPrice: Number(event.target.value) })
+                  }
+                  className="w-full rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none"
+                  required
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Số buổi HLV miễn phí</label>
-                <input 
-                  type="number" 
-                  value={formData.freeCoachingSessionsPerMonth} 
-                  onChange={e => setFormData({...formData, freeCoachingSessionsPerMonth: Number(e.target.value)})} 
-                  className="w-full border rounded-lg p-2" 
-                  required 
+                <label className="mb-1 block text-sm font-medium text-neutral-700">
+                  Giam gia ban (%)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={formData.tableDiscountPercent}
+                  onChange={(event) =>
+                    setFormData({
+                      ...formData,
+                      tableDiscountPercent: Number(event.target.value),
+                    })
+                  }
+                  className="w-full rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none"
+                  required
                 />
               </div>
 
-              <div className="flex items-center gap-2">
-                <input 
-                  type="checkbox" 
-                  id="priorityBooking"
-                  checked={formData.priorityBooking} 
-                  onChange={e => setFormData({...formData, priorityBooking: e.target.checked})} 
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-700">
+                  Dat truoc toi da (ngay)
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={formData.maxAdvanceBookingDays}
+                  onChange={(event) =>
+                    setFormData({
+                      ...formData,
+                      maxAdvanceBookingDays: Number(event.target.value),
+                    })
+                  }
+                  className="w-full rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none"
+                  required
                 />
-                <label htmlFor="priorityBooking" className="text-sm font-medium">Ưu tiên đặt bàn</label>
               </div>
-              
-              <div className="flex items-center gap-2">
-                <input 
-                  type="checkbox" 
-                  id="isActive"
-                  checked={formData.isActive} 
-                  onChange={e => setFormData({...formData, isActive: e.target.checked})} 
+
+              <div>
+                <label className="mb-1 block text-sm font-medium text-neutral-700">
+                  Free coaching/thang
+                </label>
+                <input
+                  type="number"
+                  min={0}
+                  value={formData.freeCoachingSessionsPerMonth}
+                  onChange={(event) =>
+                    setFormData({
+                      ...formData,
+                      freeCoachingSessionsPerMonth: Number(event.target.value),
+                    })
+                  }
+                  className="w-full rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none"
+                  required
                 />
-                <label htmlFor="isActive" className="text-sm font-medium">Đang hoạt động</label>
               </div>
-              
-              <div className="flex justify-end gap-2 mt-6">
-                <button type="button" onClick={handleCloseModal} className="px-4 py-2 border rounded-lg hover:bg-neutral-50">Hủy</button>
-                <button type="submit" className="px-4 py-2 bg-primary text-black font-medium rounded-lg hover:bg-primary/90">Lưu</button>
+
+              <label className="flex items-center gap-3 rounded-2xl border border-neutral-200 px-4 py-3 text-sm font-medium text-neutral-700">
+                <input
+                  type="checkbox"
+                  checked={formData.priorityBooking}
+                  onChange={(event) =>
+                    setFormData({ ...formData, priorityBooking: event.target.checked })
+                  }
+                />
+                Priority booking
+              </label>
+
+              <label className="flex items-center gap-3 rounded-2xl border border-neutral-200 px-4 py-3 text-sm font-medium text-neutral-700">
+                <input
+                  type="checkbox"
+                  checked={formData.isActive}
+                  onChange={(event) => setFormData({ ...formData, isActive: event.target.checked })}
+                />
+                Plan dang active
+              </label>
+
+              <div className="mt-2 flex gap-3 md:col-span-2">
+                <button
+                  type="button"
+                  onClick={handleCloseModal}
+                  className="flex-1 rounded-xl border border-neutral-200 py-3 text-sm font-bold text-neutral-700 transition-colors hover:bg-neutral-50"
+                >
+                  Huy
+                </button>
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  className="flex-1 rounded-xl bg-primary py-3 text-sm font-bold text-white transition-colors hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  {editingPlanId !== null ? 'Luu thay doi' : 'Tao goi'}
+                </button>
               </div>
             </form>
           </div>

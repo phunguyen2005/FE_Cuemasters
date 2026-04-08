@@ -6,13 +6,14 @@ export interface ScreenProps {
 
 // Domain Types
 export type Role = 'Customer' | 'Staff' | 'Admin';
+export type MembershipTier = 'Free' | 'Silver' | 'Gold';
 
 export interface User {
   id: string;
   email: string;
   fullName: string;
   role: Role;
-  membershipTier?: 'Free' | 'Silver' | 'Gold';
+  membershipTier?: MembershipTier;
   avatarUrl?: string;
 }
 
@@ -62,7 +63,31 @@ export interface AdminTable {
   currentCustomerName?: string;
   currentSessionStartedAt?: string;
   nextBookingStartTime?: string;
+  nextBookingId?: string;
+  nextCustomerName?: string;
   currentSessionAmount: number;
+}
+
+export interface PendingCheckin {
+  bookingId: string;
+  userFullName?: string | null;
+  userEmail?: string | null;
+  guestName?: string | null;
+  requestedTableType: TableType;
+  startTime: string;
+  endTime: string;
+  depositAmount: number;
+  availableTableCount: number;
+}
+
+export interface UpcomingWarning {
+  bookingId: string;
+  tableId?: number | null;
+  tableNumber?: string | null;
+  currentCustomerName?: string | null;
+  endsAt: string;
+  category: TableType;
+  minutesRemaining: number;
 }
 
 export interface TableAvailabilitySlot {
@@ -120,26 +145,61 @@ export interface FnBOrder {
 
 export interface MembershipPlan {
   id: number;
+  tier: MembershipTier;
   name: string;
-  description: string;
   monthlyPrice: number;
   tableDiscountPercent: number;
-  fnbDiscountPercent: number;
-  maxActiveBookings: number;
-  freeCoachingHours: number;
+  priorityBooking: boolean;
+  freeCoachingSessionsPerMonth: number;
+  maxAdvanceBookingDays: number;
   isActive: boolean;
 }
 
 export interface UserMembership {
   id: string;
+  userId: string;
   planId: number;
+  tier: MembershipTier;
   planName: string;
+  monthlyPrice: number;
+  tableDiscountPercent: number;
+  priorityBooking: boolean;
+  freeCoachingSessionsPerMonth: number;
+  maxAdvanceBookingDays: number;
   startDate: string;
   endDate: string;
-  isActive: boolean;
   autoRenew: boolean;
-  freeCoachingHoursStarted: number;
-  freeCoachingHoursUsed: number;
+  status: string;
+  usedFreeCoachingSessions: number;
+}
+
+export interface SubscribeMembershipRequest {
+  planId: number;
+  autoRenew: boolean;
+}
+
+export interface AdminMembershipPlan {
+  id: number;
+  tier: MembershipTier;
+  name: string;
+  monthlyPrice: number;
+  tableDiscountPercent: number;
+  priorityBooking: boolean;
+  freeCoachingSessionsPerMonth: number;
+  maxAdvanceBookingDays: number;
+  isActive: boolean;
+  activeSubscribers: number;
+}
+
+export interface AdminUpsertMembershipPlanRequest {
+  tier: MembershipTier;
+  name: string;
+  monthlyPrice: number;
+  tableDiscountPercent: number;
+  priorityBooking: boolean;
+  freeCoachingSessionsPerMonth: number;
+  maxAdvanceBookingDays: number;
+  isActive: boolean;
 }
 
 export type BookingStatus = 'Pending' | 'Confirmed' | 'InProgress' | 'Completed' | 'Cancelled' | 'NoShow';

@@ -160,16 +160,7 @@ export default function Login({ onNavigate }: ScreenProps) {
           </div>
         </div>
         
-        {/* Floating Status (Glassmorphism) */}
-        <div className="absolute top-12 right-12 backdrop-blur-xl bg-surface/10 p-6 rounded-2xl border border-surface/10 shadow-2xl">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-3 h-3 bg-tertiary rounded-full"></div>
-              <div className="absolute inset-0 w-3 h-3 bg-tertiary rounded-full animate-ping opacity-40"></div>
-            </div>
-            <span className="text-surface text-xs font-bold uppercase tracking-widest">Hệ thống: Trực tuyến</span>
-          </div>
-        </div>
+
       </section>
     </main>
   );

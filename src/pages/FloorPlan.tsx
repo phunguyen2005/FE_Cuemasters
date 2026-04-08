@@ -11,9 +11,9 @@ const THIRTY_MINUTES_IN_MS = 30 * 60 * 1000;
 const DEPOSIT_AMOUNT = 50000;
 
 const CATEGORIES: { type: TableType; title: string; desc: string; rate: number }[] = [
-  { type: 'Pool', title: 'Pool', desc: 'Ban tieu chuan 9ft cho cac ca choi pho bien.', rate: 80000 },
-  { type: 'Snooker', title: 'Snooker', desc: 'Ban full-size danh cho nguoi choi muon trai nghiem chuan giai dau.', rate: 120000 },
-  { type: 'Carom', title: 'Carom', desc: 'Ban carom 3 bang danh cho nhung keo danh ky thuat.', rate: 100000 },
+  { type: 'Pool', title: 'Pool', desc: 'Bàn tiêu chuẩn 9ft cho các ca chơi phổ biến.', rate: 80000 },
+  { type: 'Snooker', title: 'Snooker', desc: 'Bàn full-size dành cho người chơi muốn trải nghiệm chuẩn giải đấu.', rate: 120000 },
+  { type: 'Carom', title: 'Carom', desc: 'Bàn carom 3 băng dành cho những kèo đánh kỹ thuật.', rate: 100000 },
 ];
 
 const getSortedSlots = (slots: string[]) =>
@@ -103,7 +103,7 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
           ),
           'HH:mm',
         )}`
-      : 'Chua chon khung gio';
+      : 'Chưa chọn khung giờ';
 
   const handleSelectCategory = (type: TableType) => {
     setBookingError('');
@@ -118,7 +118,21 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
   };
 
   const handleSlotToggle = (slot: CategoryAvailabilitySlot) => {
-    if (slot.available <= 0) {
+    const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+    let isPast = false;
+    
+    if (isToday) {
+      const [slotHour, slotMinute] = slot.startTime.split(':').map(Number);
+      const now = new Date();
+      if (
+        slotHour < now.getHours() ||
+        (slotHour === now.getHours() && slotMinute <= now.getMinutes())
+      ) {
+        isPast = true;
+      }
+    }
+
+    if (slot.available <= 0 || isPast) {
       return;
     }
 
@@ -127,7 +141,7 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
       : getSortedSlots([...selectedSlots, slot.startTime]);
 
     if (!isContiguousSelection(nextSelectedSlots)) {
-      setBookingError('Vui long chon cac khung gio lien tiep.');
+      setBookingError('Vui lòng chọn các khung giờ liên tiếp.');
       return;
     }
 
@@ -141,19 +155,19 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
 
     if (!selectedCategory) {
       setBookingSuccess('');
-      setBookingError('Hay chon loai ban truoc khi dat lich.');
+      setBookingError('Hãy chọn loại bàn trước khi đặt lịch.');
       return;
     }
 
     if (orderedSelectedSlots.length === 0) {
       setBookingSuccess('');
-      setBookingError('Hay chon it nhat mot khung gio trong thanh ben.');
+      setBookingError('Hãy chọn ít nhất một khung giờ trong thanh bên.');
       return;
     }
 
     if (!isContiguousSelection(orderedSelectedSlots)) {
       setBookingSuccess('');
-      setBookingError('Khung gio dat ban phai lien tiep nhau.');
+      setBookingError('Khung giờ đặt bàn phải liên tiếp nhau.');
       return;
     }
 
@@ -173,12 +187,12 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
         fnBOrders: [],
       });
 
-      setBookingSuccess(response.message || 'Dat ban thanh cong.');
+      setBookingSuccess(response.message || 'Đặt bàn thành công.');
       clearBooking();
       onNavigate('bookingHistory');
     } catch (error) {
       setBookingError(
-        getErrorMessage(error, 'Khong the tao luot dat ngay luc nay. Vui long thu lai.'),
+        getErrorMessage(error, 'Không thể tạo lượt đặt ngay lúc này. Vui lòng thử lại.'),
       );
     }
   };
@@ -189,12 +203,12 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
         <div className="space-y-12 lg:col-span-8">
           <section>
             <h1 className="mb-4 text-5xl font-extrabold font-headline tracking-tight text-on-background">
-              So do san Precision
+              Sơ đồ sân Precision
             </h1>
             <p className="max-w-2xl font-body leading-relaxed text-secondary">
-              Chon loai ban truoc, sau do chon ngay va khung gio trong. Ban cu the se duoc nhan
-              vien sap xep khi ban den check-in, dung voi luong dat ban theo category cua he
-              thong.
+              Chọn loại bàn trước, sau đó chọn ngày và khung giờ trống. Bàn cụ thể sẽ được nhân
+              viên sắp xếp khi bạn đến check-in, đúng với lượng đặt bàn theo category của hệ
+              thống.
             </p>
           </section>
 
@@ -234,14 +248,14 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
                       </div>
 
                       <p className="text-[11px] font-bold uppercase tracking-[0.24em] text-secondary">
-                        Staff assigns your physical table when you arrive.
+                        Nhân viên sẽ sắp xếp bàn cụ thể khi bạn đến.
                       </p>
                     </div>
 
                     <div className="flex items-center justify-between gap-4 md:block md:min-w-[180px] md:text-right">
                       <div>
                         <p className="text-[10px] font-bold uppercase tracking-widest text-secondary">
-                          Don gia
+                          Đơn giá
                         </p>
                         <p className="text-xl font-black text-primary">
                           {formatCurrency(category.rate)}/h
@@ -255,7 +269,7 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
                             : 'bg-surface-container-high text-secondary'
                         }`}
                       >
-                        {isSelected ? 'Da chon' : 'Chon ban'}
+                        {isSelected ? 'Đã chọn' : 'Chọn bàn'}
                       </span>
                     </div>
                   </div>
@@ -268,7 +282,7 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
         <aside className="space-y-8 lg:col-span-4">
           <div className="sticky top-24 max-h-[calc(100vh-6rem)] overflow-y-auto space-y-8 rounded-xl border-t border-white/40 bg-surface-container-low p-8 shadow-[0_10px_30px_-15px_rgba(0,0,0,0.05)]">
             <h2 className="text-3xl font-extrabold font-headline tracking-tighter">
-              Dat ban nhanh
+              Đặt bàn nhanh
             </h2>
 
             {bookingError && (
@@ -284,14 +298,14 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
             )}
 
             <div className="mt-4 rounded-2xl border border-tertiary/20 bg-tertiary/5 px-4 py-3 text-sm text-tertiary-dark">
-              <strong>He thong dat lich tu dong:</strong> Ban cu the se duoc staff gan khi ban den
-              check-in. Coc giu cho co dinh <strong>{formatCurrency(DEPOSIT_AMOUNT)}</strong>.
+              <strong>Hệ thống đặt lịch tự động:</strong> Bàn cụ thể sẽ được staff gắn khi bạn đến
+              check-in. Cọc giữ chỗ cố định <strong>{formatCurrency(DEPOSIT_AMOUNT)}</strong>.
             </div>
 
             <form className="space-y-6" onSubmit={handleSubmit}>
               <div className="mt-4 space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-secondary">
-                  Ngay choi
+                  Ngày chơi
                 </label>
                 <div className="grid grid-cols-4 gap-2">
                   {availableDates.map((date, index) => {
@@ -309,7 +323,7 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
                             : 'bg-surface-container-lowest text-on-surface hover:bg-surface-container-high'
                         }`}
                       >
-                        {index === 0 ? 'HOM NAY' : format(date, 'dd MMM').toUpperCase()}
+                        {index === 0 ? 'HÔM NAY' : format(date, 'dd MMM').toUpperCase()}
                       </button>
                     );
                   })}
@@ -318,16 +332,16 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
 
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-secondary">
-                  Khung gio
+                  Khung giờ
                 </label>
 
                 {!selectedCategory ? (
                   <div className="rounded-lg bg-surface-container-lowest p-4 text-sm text-secondary">
-                    Chon loai ban de xem lich trong.
+                    Chọn loại bàn để xem lịch trống.
                   </div>
                 ) : isBookingLoading && !categoryAvailability ? (
                   <div className="rounded-lg bg-surface-container-lowest p-4 text-sm text-secondary">
-                    Dang tai khung gio kha dung...
+                    Đang tải khung giờ khả dụng...
                   </div>
                 ) : availabilityError ? (
                   <div className="rounded-lg border border-error/20 bg-error/5 p-4 text-sm text-error">
@@ -335,13 +349,26 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
                   </div>
                 ) : !categoryAvailability || categoryAvailability.slots.length === 0 ? (
                   <div className="rounded-lg bg-surface-container-lowest p-4 text-sm text-secondary">
-                    Chua co khung gio kha dung cho ngay da chon.
+                    Chưa có khung giờ khả dụng cho ngày đã chọn.
                   </div>
                 ) : (
                   <div className="grid max-h-72 grid-cols-3 gap-2 overflow-y-auto pr-1">
                     {categoryAvailability.slots.map((slot) => {
                       const isSelectedSlot = selectedSlots.includes(slot.startTime);
-                      const isAvailable = slot.available > 0;
+                      let isAvailable = slot.available > 0;
+                      
+                      const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+                      if (isToday) {
+                        const [slotHour, slotMinute] = slot.startTime.split(':').map(Number);
+                        const now = new Date();
+                        if (
+                          slotHour < now.getHours() ||
+                          (slotHour === now.getHours() && slotMinute <= now.getMinutes())
+                        ) {
+                          isAvailable = false;
+                        }
+                      }
+
                       const slotLabel = slot.startTime.slice(0, 5);
 
                       return (
@@ -373,15 +400,15 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
 
               <div className="space-y-2">
                 <label className="text-[10px] font-bold uppercase tracking-widest text-secondary">
-                  Thoi luong (gio)
+                  Thời lượng (giờ)
                 </label>
                 <div className="rounded-lg bg-surface-container-lowest p-4">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm text-secondary">Khung gio da chon</span>
+                    <span className="text-sm text-secondary">Khung giờ đã chọn</span>
                     <span className="font-bold">{slotRangeLabel}</span>
                   </div>
                   <div className="mt-3 flex items-center justify-between">
-                    <span className="text-sm text-secondary">Tong thoi luong</span>
+                    <span className="text-sm text-secondary">Tổng thời lượng</span>
                     <span className="font-bold">{durationHours.toFixed(1)}</span>
                   </div>
                 </div>
@@ -391,16 +418,16 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
                 <div className="flex items-end justify-between border-b border-outline-variant/10 pb-4">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-widest text-secondary">
-                      Tong thanh toan du kien
+                      Tổng thanh toán dự kiến
                     </p>
                     <p className="text-3xl font-black font-headline text-on-background">
                       {formatCurrency(grandTotal)}
                     </p>
                   </div>
                   <div className="space-y-1 text-right text-[10px] text-secondary">
-                    <p>Gio choi: {formatCurrency(totalPrice)}</p>
+                    <p>Giờ chơi: {formatCurrency(totalPrice)}</p>
                     <p className="font-bold text-tertiary">
-                      Coc truoc: {formatCurrency(DEPOSIT_AMOUNT)}
+                      Cọc trước: {formatCurrency(DEPOSIT_AMOUNT)}
                     </p>
                   </div>
                 </div>
@@ -411,8 +438,8 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
                   disabled={!selectedCategory || orderedSelectedSlots.length === 0 || isBookingLoading}
                 >
                   {isBookingLoading
-                    ? 'Dang tao luot dat...'
-                    : `Xac nhan dat ban (Coc ${DEPOSIT_AMOUNT / 1000}K)`}
+                    ? 'Đang tạo lượt đặt...'
+                    : `Xác nhận đặt bàn (Cọc ${DEPOSIT_AMOUNT / 1000}K)`}
                 </button>
               </div>
             </form>

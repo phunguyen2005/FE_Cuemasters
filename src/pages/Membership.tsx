@@ -4,11 +4,11 @@ import { ScreenProps, MembershipPlan } from '../types';
 import { useMembershipStore } from '../stores/membershipStore';
 import { useAuthStore } from '../stores/authStore';
 import { formatCurrency } from '../utils/formatCurrency';
+import { Check, Crown, CalendarDays, Clock, Info } from 'lucide-react';
 
 const getAdvanceWindowLabel = (days: number) => {
-  if (days <= 0) return 'Trong ngay';
-  if (days === 1) return '1 ngay';
-  return `${days} ngay`;
+  if (days <= 0) return 'Chỉ đặt trong ngày';
+  return `Trước ${days} ngày`;
 };
 
 const formatDate = (value: string) =>
@@ -98,7 +98,7 @@ export default function Membership({ onNavigate }: ScreenProps) {
     if (!isAuthenticated) {
       setFeedback({
         type: 'error',
-        message: 'Ban can dang nhap truoc khi dang ky goi thanh vien.',
+        message: 'Vui lòng đăng nhập trước khi đăng ký gói thành viên.',
       });
       onNavigate('login');
       return;
@@ -110,12 +110,12 @@ export default function Membership({ onNavigate }: ScreenProps) {
       const membership = await subscribe(planId, autoRenewOnSubscribe);
       setFeedback({
         type: 'success',
-        message: `Da dang ky goi ${membership.planName} thanh cong.`,
+        message: `Đăng ký gói ${membership.planName} thành công.`,
       });
     } catch (error) {
       setFeedback({
         type: 'error',
-        message: getErrorMessage(error, 'Khong the dang ky goi thanh vien luc nay.'),
+        message: getErrorMessage(error, 'Không thể đăng ký gói thành viên lúc này.'),
       });
     }
   };
@@ -127,299 +127,230 @@ export default function Membership({ onNavigate }: ScreenProps) {
       await cancelAutoRenew();
       setFeedback({
         type: 'success',
-        message: 'Da tat tuy chon gia han tu dong cho goi hien tai.',
+        message: 'Đã hủy gia hạn tự động.',
       });
     } catch (error) {
       setFeedback({
         type: 'error',
-        message: getErrorMessage(error, 'Khong the cap nhat tuy chon gia han tu dong.'),
+        message: getErrorMessage(error, 'Không thể hủy gia hạn tự động.'),
       });
     }
   };
 
   return (
     <CustomerLayout onNavigate={onNavigate} activeScreen="membershipTiers">
-      <div className="px-8 pb-20">
-        <div className="mx-auto max-w-6xl space-y-8">
-          <section className="rounded-3xl border border-outline-variant/20 bg-stone-950 px-8 py-10 text-white shadow-2xl">
-            <div className="grid gap-8 lg:grid-cols-[1.5fr_1fr]">
-              <div className="space-y-5">
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-primary">
-                  Membership Flow
-                </p>
-                <h1 className="text-5xl font-black font-headline tracking-tight">
-                  Goi thanh vien anh huong truc tiep den booking.
-                </h1>
-                <p className="max-w-3xl text-sm leading-7 text-stone-300">
-                  Hien tai he thong dang ap dung 2 loi ich membership vao luong dat ban:
-                  giam gia ban va so ngay duoc dat truoc. Priority booking, quota HLV mien
-                  phi, va auto-renew van duoc luu trong du lieu nhung chua co worker hoac
-                  usage tracking tu dong.
-                </p>
-              </div>
-
-              <div className="rounded-2xl border border-white/10 bg-white/5 p-6">
-                <p className="text-xs font-bold uppercase tracking-[0.22em] text-stone-400">
-                  Dang ap dung that
-                </p>
-                <div className="mt-4 space-y-3 text-sm text-stone-200">
-                  <div className="rounded-xl bg-white/5 px-4 py-3">
-                    Giam gia ban theo <strong>TableDiscountPercent</strong> cua goi.
-                  </div>
-                  <div className="rounded-xl bg-white/5 px-4 py-3">
-                    Chan dat truoc vuot qua <strong>MaxAdvanceBookingDays</strong>.
-                  </div>
-                  <div className="rounded-xl bg-amber-500/10 px-4 py-3 text-amber-100">
-                    Priority booking va mien phi HLV hien moi o muc metadata, chua tu dong
-                    enforce trong booking flow.
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
+      <div className="px-6 py-12 md:py-20 min-h-screen bg-[#0A0A0A] text-white">
+        <div className="mx-auto max-w-6xl space-y-12">
+          
+          {/* Header */}
+          <div className="space-y-4 text-center">
+            <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white">
+              Gói Thành Viên CueMasters
+            </h1>
+            <p className="mx-auto max-w-2xl text-stone-400 text-sm md:text-base leading-relaxed">
+              Nâng tầm trải nghiệm billiard của bạn với các đặc quyền độc quyền. Nhận ưu đãi giờ chơi, ưu tiên đặt bàn và các quyền lợi đặc biệt khác.
+            </p>
+          </div>
 
           {feedback && (
-            <div
-              className={`rounded-2xl border px-4 py-3 text-sm ${
-                feedback.type === 'success'
-                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
-                  : 'border-error/20 bg-error/5 text-error'
-              }`}
-            >
+            <div className={`p-4 rounded-xl flex items-center gap-3 text-sm font-medium ${
+              feedback.type === 'success' 
+                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
+                : 'bg-red-500/10 text-red-400 border border-red-500/20'
+            }`}>
+              <Info className="w-5 h-5 shrink-0" />
               {feedback.message}
             </div>
           )}
 
+          {/* Current Membership */}
           {activeMembership && currentPlan && (
-            <section className="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-8 shadow-sm">
-              <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
-                <div className="space-y-4">
-                  <div className="flex flex-wrap items-center gap-3">
-                    <span className="rounded-full bg-primary px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-white">
+            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-stone-900 to-stone-950 border border-stone-800 p-8 md:p-10 shadow-2xl">
+              <div className="absolute -right-8 -top-8 p-8 opacity-5 pointer-events-none">
+                <Crown className="w-64 h-64" />
+              </div>
+              
+              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+                <div className="space-y-5">
+                  <div className="flex items-center gap-3">
+                    <span className="px-4 py-1.5 rounded-full bg-primary/20 text-primary text-xs font-black uppercase tracking-widest">
                       {currentPlan.tier}
                     </span>
-                    <span className="rounded-full bg-surface-container-high px-3 py-1 text-xs font-medium text-secondary">
+                    <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest ${
+                      activeMembership.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-stone-800 text-stone-400'
+                    }`}>
                       {activeMembership.status}
                     </span>
                   </div>
-
+                  
                   <div>
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">
-                      Goi hien tai
-                    </p>
-                    <h2 className="mt-2 text-4xl font-black font-headline tracking-tight text-on-background">
-                      {activeMembership.planName}
-                    </h2>
+                    <p className="text-stone-400 text-sm font-medium tracking-wide uppercase mb-2">Gói đang sử dụng</p>
+                    <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">{activeMembership.planName}</h2>
                   </div>
-
-                  <p className="max-w-3xl text-sm leading-7 text-secondary">
-                    Bat dau {formatDate(activeMembership.startDate)} va ket thuc {formatDate(activeMembership.endDate)}.
-                    {activeMembership.autoRenew
-                      ? ' Tuy chon auto-renew dang bat, nhung hien chua co worker tu dong thu phi/gia han.'
-                      : ' Auto-renew dang tat.'}
-                  </p>
+                  
+                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 text-sm font-medium text-stone-300">
+                    <div className="flex items-center gap-2.5">
+                      <CalendarDays className="w-4 h-4 text-primary" />
+                      Hiệu lực: {formatDate(activeMembership.startDate)} — {formatDate(activeMembership.endDate)}
+                    </div>
+                    <div className="flex items-center gap-2.5">
+                      <Clock className="w-4 h-4 text-primary" />
+                      Gia hạn: {activeMembership.autoRenew ? 'Tự động' : 'Thủ công'}
+                    </div>
+                  </div>
                 </div>
 
-                <div className="flex w-full flex-col gap-3 lg:w-auto">
-                  <div className="rounded-2xl bg-surface-container-high px-5 py-4 text-right">
-                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-secondary">
-                      Phi hang thang
-                    </p>
-                    <p className="mt-1 text-3xl font-black text-primary">
-                      {formatCurrency(currentPlan.monthlyPrice)}
-                    </p>
-                  </div>
-
+                <div className="flex flex-col gap-4 min-w-[200px]">
                   {activeMembership.autoRenew && (
                     <button
                       onClick={handleCancelAutoRenew}
                       disabled={isLoading}
-                      className="rounded-full border border-outline-variant/30 bg-white px-6 py-3 text-sm font-bold uppercase tracking-[0.16em] text-on-background transition-colors hover:bg-surface-container-high disabled:cursor-not-allowed disabled:opacity-60"
+                      className="w-full py-3.5 px-6 rounded-2xl border border-stone-700/50 bg-stone-800/50 hover:bg-stone-800 hover:border-stone-600 transition-all text-white font-semibold text-sm disabled:opacity-50"
                     >
-                      Tat auto-renew
+                      Hủy gia hạn tự động
                     </button>
                   )}
                 </div>
               </div>
 
-              <div className="mt-8 grid gap-4 md:grid-cols-4">
-                <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-low p-5">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-secondary">
-                    Giam gia ban
-                  </p>
-                  <p className="mt-2 text-2xl font-black text-on-background">
-                    {currentPlan.tableDiscountPercent}%
-                  </p>
+              <div className="relative z-10 grid grid-cols-2 md:grid-cols-4 gap-6 mt-10 pt-10 border-t border-stone-800/50">
+                <div className="flex flex-col gap-2">
+                  <span className="text-stone-400 text-[11px] uppercase tracking-widest font-bold">Giảm giá bàn</span>
+                  <span className="text-2xl md:text-3xl font-black text-white">{currentPlan.tableDiscountPercent}%</span>
                 </div>
-                <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-low p-5">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-secondary">
-                    Dat truoc
-                  </p>
-                  <p className="mt-2 text-2xl font-black text-on-background">
-                    {getAdvanceWindowLabel(currentPlan.maxAdvanceBookingDays)}
-                  </p>
+                <div className="flex flex-col gap-2">
+                  <span className="text-stone-400 text-[11px] uppercase tracking-widest font-bold">Đặt bàn online</span>
+                  <span className="text-2xl md:text-3xl font-black text-white">{getAdvanceWindowLabel(currentPlan.maxAdvanceBookingDays)}</span>
                 </div>
-                <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-low p-5">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-secondary">
-                    Buoi HLV/thang
-                  </p>
-                  <p className="mt-2 text-2xl font-black text-on-background">
-                    {currentPlan.freeCoachingSessionsPerMonth}
-                  </p>
+                <div className="flex flex-col gap-2">
+                  <span className="text-stone-400 text-[11px] uppercase tracking-widest font-bold">Buổi HLV / tháng</span>
+                  <span className="text-2xl md:text-3xl font-black text-white">{currentPlan.freeCoachingSessionsPerMonth}</span>
                 </div>
-                <div className="rounded-2xl border border-outline-variant/10 bg-surface-container-low p-5">
-                  <p className="text-xs font-bold uppercase tracking-[0.16em] text-secondary">
-                    Priority booking
-                  </p>
-                  <p className="mt-2 text-2xl font-black text-on-background">
-                    {currentPlan.priorityBooking ? 'On' : 'Off'}
-                  </p>
+                <div className="flex flex-col gap-2">
+                  <span className="text-stone-400 text-[11px] uppercase tracking-widest font-bold">Ưu tiên xếp bàn</span>
+                  <span className="text-2xl md:text-3xl font-black text-white">{currentPlan.priorityBooking ? 'Có' : 'Không'}</span>
                 </div>
               </div>
-            </section>
-          )}
-
-          {!activeMembership && (
-            <section className="rounded-3xl border border-outline-variant/20 bg-surface-container-lowest p-6 shadow-sm">
-              <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                <div>
-                  <h2 className="text-2xl font-bold font-headline text-on-background">
-                    Chon cach luu tuy chon gia han
-                  </h2>
-                  <p className="mt-2 text-sm leading-7 text-secondary">
-                    Backend luu duoc co auto-renew hay khong khi dang ky. Hien chua co job
-                    tu dong thu phi, nen day la thong tin luu trang thai, khong phai quy
-                    trinh renew thuc su.
-                  </p>
-                </div>
-
-                <label className="flex items-center gap-3 rounded-full border border-outline-variant/20 bg-surface-container-low px-4 py-3 text-sm font-medium text-on-background">
-                  <input
-                    type="checkbox"
-                    checked={autoRenewOnSubscribe}
-                    onChange={(event) => setAutoRenewOnSubscribe(event.target.checked)}
-                    className="h-4 w-4 rounded border-outline-variant"
-                  />
-                  Tu dong gia han khi dang ky
-                </label>
-              </div>
-            </section>
-          )}
-
-          <section className="space-y-4">
-            <div className="flex flex-col gap-2 lg:flex-row lg:items-end lg:justify-between">
-              <div>
-                <h2 className="text-3xl font-black font-headline tracking-tight text-on-background">
-                  Danh sach goi thanh vien
-                </h2>
-                <p className="mt-2 text-sm leading-7 text-secondary">
-                  Moi goi luu day du du lieu trong MembershipPlan. Customer flow hien nen
-                  duoc hieu la: dang ky 1 thang, nhan giam gia ban, va bi rang buoc so ngay
-                  dat truoc theo goi.
-                </p>
-              </div>
-
-              {activeMembership && (
-                <p className="text-sm font-medium text-secondary">
-                  Hien backend chua ho tro doi goi giua ky khi membership van con active.
-                </p>
-              )}
             </div>
+          )}
 
-            {plans.length === 0 && !isLoading ? (
-              <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-low p-6 text-sm text-secondary">
-                Chua co goi thanh vien dang ban.
-              </div>
-            ) : (
-              <div className="grid gap-6 lg:grid-cols-3">
-                {plans.map((plan) => {
-                  const isCurrentPlan = activeMembership?.planId === plan.id;
-                  const subscribeDisabled = isLoading || !!activeMembership;
+          {/* Subscriptions toggle */}
+          {!activeMembership && (
+            <div className="flex justify-center">
+              <label className="group flex items-center gap-4 bg-stone-900/40 border border-stone-800/60 px-6 py-4 rounded-2xl cursor-pointer hover:bg-stone-900/80 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={autoRenewOnSubscribe}
+                  onChange={(e) => setAutoRenewOnSubscribe(e.target.checked)}
+                  className="w-5 h-5 rounded border-stone-700 bg-stone-950 text-emerald-500 focus:ring-emerald-500/50 focus:ring-offset-stone-950 transition-colors"
+                />
+                <span className="text-stone-300 font-medium select-none group-hover:text-white transition-colors">Đăng ký chu kỳ tự động gia hạn hàng tháng</span>
+              </label>
+            </div>
+          )}
 
-                  return (
-                    <article
-                      key={plan.id}
-                      className={`rounded-3xl border p-6 shadow-sm transition-colors ${
-                        isCurrentPlan
-                          ? 'border-primary bg-primary/5'
-                          : 'border-outline-variant/20 bg-surface-container-lowest'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div>
-                          <div className="flex flex-wrap items-center gap-2">
-                            <span className="rounded-full bg-surface-container-high px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-secondary">
-                              {plan.tier}
-                            </span>
-                            {!plan.isActive && (
-                              <span className="rounded-full bg-red-50 px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-red-600">
-                                Tam an
-                              </span>
-                            )}
-                          </div>
-                          <h3 className="mt-4 text-2xl font-black font-headline text-on-background">
-                            {plan.name}
-                          </h3>
-                        </div>
-
-                        <div className="text-right">
-                          <p className="text-xs font-bold uppercase tracking-[0.16em] text-secondary">
-                            Gia/thang
-                          </p>
-                          <p className="mt-2 text-2xl font-black text-primary">
-                            {formatCurrency(plan.monthlyPrice)}
-                          </p>
-                        </div>
+          {/* Plans Grid */}
+          {plans.length === 0 && !isLoading ? (
+            <div className="text-center text-stone-500 py-12 font-medium">
+              Hiện chưa có gói thành viên nào được mở bán.
+            </div>
+          ) : (
+            <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+              {plans.map((plan) => {
+                const isCurrentPlan = activeMembership?.planId === plan.id;
+                const isMostPopular = plan.tier.toLowerCase() === 'gold' || plan.tier.toLowerCase() === 'vip';
+                
+                return (
+                  <div
+                    key={plan.id}
+                    className={`relative flex flex-col rounded-[2rem] p-8 transition-all duration-300 ${
+                      isCurrentPlan
+                        ? 'bg-primary/5 border-2 border-primary/40 shadow-[0_0_40px_rgba(var(--primary-rgb),0.15)] scale-[1.02]'
+                        : 'bg-stone-900/30 border border-stone-800 hover:bg-stone-900/60 hover:border-stone-700'
+                    }`}
+                  >
+                    {!plan.isActive && (
+                      <div className="absolute -top-3 -right-3">
+                        <span className="bg-red-500 text-white text-[10px] font-black uppercase px-4 py-1.5 rounded-full shadow-lg tracking-wider">
+                          Tạm ngừng
+                        </span>
                       </div>
-
-                      <div className="mt-6 space-y-3 text-sm text-on-background">
-                        <div className="rounded-2xl bg-surface-container-low px-4 py-3">
-                          Giam gia ban: <strong>{plan.tableDiscountPercent}%</strong>
-                        </div>
-                        <div className="rounded-2xl bg-surface-container-low px-4 py-3">
-                          Dat truoc: <strong>{getAdvanceWindowLabel(plan.maxAdvanceBookingDays)}</strong>
-                        </div>
-                        <div className="rounded-2xl bg-surface-container-low px-4 py-3">
-                          Free coaching: <strong>{plan.freeCoachingSessionsPerMonth} buoi/thang</strong>
-                          <span className="mt-1 block text-xs text-secondary">
-                            Quota nay da luu trong goi, nhung MembershipBenefitUsage chua duoc
-                            service cap nhat tu dong.
+                    )}
+                    
+                    <div className="mb-8">
+                      <div className="flex items-center justify-between mb-6">
+                        <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
+                          isCurrentPlan ? 'bg-primary/20 text-primary' : 'bg-stone-800 text-stone-300'
+                        }`}>
+                          {plan.tier}
+                        </span>
+                        {isMostPopular && !isCurrentPlan && (
+                          <span className="text-amber-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
+                            <Crown className="w-3.5 h-3.5" /> Phổ biến
                           </span>
-                        </div>
-                        <div className="rounded-2xl bg-surface-container-low px-4 py-3">
-                          Priority booking: <strong>{plan.priorityBooking ? 'Bat' : 'Tat'}</strong>
-                          <span className="mt-1 block text-xs text-secondary">
-                            Co flag trong plan, nhung BookingService hien chua doc flag nay.
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="mt-6">
-                        {isCurrentPlan ? (
-                          <button
-                            disabled
-                            className="w-full rounded-full bg-primary py-3 text-sm font-bold uppercase tracking-[0.16em] text-white opacity-80"
-                          >
-                            Dang su dung
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => handleSubscribe(plan.id)}
-                            disabled={subscribeDisabled || !plan.isActive}
-                            className="w-full rounded-full bg-on-background py-3 text-sm font-bold uppercase tracking-[0.16em] text-white transition-colors hover:bg-primary disabled:cursor-not-allowed disabled:opacity-50"
-                          >
-                            {activeMembership ? 'Chua ho tro doi goi giua ky' : 'Dang ky goi nay'}
-                          </button>
                         )}
                       </div>
-                    </article>
-                  );
-                })}
-              </div>
-            )}
-          </section>
+                      <h3 className="text-2xl font-black text-white mb-2">{plan.name}</h3>
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-4xl font-black text-white">{formatCurrency(plan.monthlyPrice)}</span>
+                        <span className="text-stone-500 text-sm font-bold uppercase tracking-wider">/tháng</span>
+                      </div>
+                    </div>
+
+                    <div className="flex-1 space-y-4 mb-8">
+                      <div className="flex items-start gap-3">
+                        <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                        <span className="text-stone-300 text-sm leading-relaxed">Giảm ngay <strong className="text-white font-black">{plan.tableDiscountPercent}%</strong> phí giờ chơi bàn</span>
+                      </div>
+                      <div className="flex items-start gap-3">
+                        <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                        <span className="text-stone-300 text-sm leading-relaxed">Quyền đặt bàn <strong className="text-white font-black">{getAdvanceWindowLabel(plan.maxAdvanceBookingDays).toLowerCase()}</strong></span>
+                      </div>
+                      {plan.freeCoachingSessionsPerMonth > 0 && (
+                        <div className="flex items-start gap-3">
+                          <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                          <span className="text-stone-300 text-sm leading-relaxed"><strong className="text-white font-black">{plan.freeCoachingSessionsPerMonth} buổi</strong> huấn luyện miễn phí / tháng</span>
+                        </div>
+                      )}
+                      {plan.priorityBooking && (
+                        <div className="flex items-start gap-3">
+                          <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
+                          <span className="text-stone-300 text-sm leading-relaxed">Quyền <strong className="text-white font-black">ưu tiên xếp bàn</strong> khi khách đông</span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="mt-auto pt-6">
+                      <button
+                        onClick={() => handleSubscribe(plan.id)}
+                        disabled={isLoading || !!activeMembership || !plan.isActive}
+                        className={`w-full py-4 rounded-xl font-bold text-sm tracking-wide transition-all ${
+                          isCurrentPlan
+                            ? 'bg-primary text-white shadow-lg shadow-primary/20 cursor-default'
+                            : activeMembership
+                            ? 'bg-stone-800 text-stone-500 cursor-not-allowed hidden'
+                            : !plan.isActive
+                            ? 'bg-stone-800 text-stone-500 cursor-not-allowed'
+                            : 'bg-white text-black hover:bg-stone-200'
+                        }`}
+                      >
+                        {isCurrentPlan ? 'Đang Sử Dụng' : 'Đăng Ký Gói Này'}
+                      </button>
+                      
+                      {activeMembership && !isCurrentPlan && (
+                        <div className="w-full text-center text-xs text-stone-500 font-medium py-3">
+                          Không thể thay đổi khi đang có gói hiệu lực
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
     </CustomerLayout>
   );
 }
+

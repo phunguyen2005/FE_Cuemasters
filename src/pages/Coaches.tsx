@@ -55,16 +55,7 @@ export default function Coaches({ onNavigate }: ScreenProps) {
               <h1 className="text-7xl font-extrabold tracking-tighter leading-none mb-8 text-on-surface font-headline">Huấn luyện <br/><span className="text-primary">chuẩn xác.</span></h1>
               <p className="text-secondary max-w-lg font-body leading-relaxed text-lg">Nâng tầm kỹ năng bida của bạn với các huấn luyện viên đẳng cấp thế giới. Từ kỹ thuật cơ bản đến chiến thuật nâng cao, các khóa học của chúng tôi cung cấp lộ trình cá nhân hóa để tiến tới sự tinh thông.</p>
             </div>
-            <div className="w-full md:w-1/3 bg-surface-container-high p-8 flex items-center justify-between rounded-xl">
-              <div>
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="w-2 h-2 rounded-full bg-tertiary animate-pulse shadow-[0_0_8px_rgba(0,104,93,0.4)]"></div>
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-tertiary">Trạng thái trực tiếp</span>
-                </div>
-                <p className="font-headline font-bold text-xl">12 HLV đang trực tuyến</p>
-              </div>
-              <button className="bg-primary text-on-primary px-6 py-3 rounded-full font-label text-xs font-bold uppercase tracking-widest hover:bg-primary-container transition-all active:scale-95">Ghép trận nhanh</button>
-            </div>
+
           </div>
         </section>
 
@@ -155,20 +146,36 @@ export default function Coaches({ onNavigate }: ScreenProps) {
                   <p className="text-center text-sm text-stone-500 py-4">Không có giờ trống trong ngày này.</p>
                 ) : (
                   availability.map((slot, i) => {
+                    let isAvailableLocally = slot.isAvailable;
+                    let isPast = false;
+                    
+                    const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+                    if (isToday) {
+                      const [slotHour, slotMinute] = slot.startTime.split(':').map(Number);
+                      const now = new Date();
+                      if (
+                        slotHour < now.getHours() ||
+                        (slotHour === now.getHours() && slotMinute <= now.getMinutes())
+                      ) {
+                        isAvailableLocally = false;
+                        isPast = true;
+                      }
+                    }
+
                     const isSelected = selectedSlot?.startTime === slot.startTime && selectedSlot?.endTime === slot.endTime;
                     return (
                       <div
                         key={i}
-                        onClick={() => slot.isAvailable && setSelectedSlot(slot)}
+                        onClick={() => isAvailableLocally && setSelectedSlot(slot)}
                         className={`flex justify-between items-center py-4 px-3 border-b border-white/5 last:border-0 transition-colors ${
-                          slot.isAvailable ? 'cursor-pointer group' : 'opacity-40'
+                          isAvailableLocally ? 'cursor-pointer group' : 'opacity-40'
                         } ${isSelected ? 'bg-primary/20 border-primary/40' : ''}`}
                       >
-                        <span className={`text-sm font-medium transition-colors ${slot.isAvailable ? 'text-stone-300 group-hover:text-white' : 'text-stone-500'} ${isSelected ? 'text-white' : ''}`}>
+                        <span className={`text-sm font-medium transition-colors ${isAvailableLocally ? 'text-stone-300 group-hover:text-white' : 'text-stone-500'} ${isSelected ? 'text-white' : ''}`}>
                           {slot.startTime} - {slot.endTime}
                         </span>
-                        <span className={`text-[10px] font-bold uppercase tracking-widest ${slot.isAvailable ? 'text-primary' : 'text-stone-500'}`}>
-                          {isSelected ? 'Đã chọn' : slot.isAvailable ? 'Sẵn sàng' : 'Đã Kín Chỗ'}
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${isAvailableLocally ? 'text-primary' : 'text-stone-500'}`}>
+                          {isSelected ? 'Đã chọn' : isAvailableLocally ? 'Sẵn sàng' : (isPast ? 'Đã qua' : 'Đã Kín Chỗ')}
                         </span>
                       </div>
                     );

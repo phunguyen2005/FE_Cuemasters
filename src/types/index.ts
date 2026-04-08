@@ -120,6 +120,23 @@ export interface CoachAvailabilitySlot {
   isAvailable: boolean;
 }
 
+export interface StaffAvailability {
+  id: number;
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isBlocked: boolean;
+  specificDate?: string | null;
+}
+
+export interface UpsertStaffAvailabilityRequest {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+  isBlocked: boolean;
+  specificDate?: string | null;
+}
+
 export interface FnBMenuItem {
   id: number;
   name: string;

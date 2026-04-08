@@ -14,14 +14,18 @@ export const TableCard = ({
   onClick,
   onCheckin,
   onCheckout,
-  onWalkin
+  onWalkin,
+  hasPending = false,
+  onCheckinOnline
 }: { 
   table: AdminTable, 
   booking?: any,
   onClick?: (table: AdminTable) => void,
   onCheckin?: (bookingId: string) => void,
   onCheckout?: (booking: any, table: AdminTable) => void,
-  onWalkin?: (table: AdminTable) => void
+  onWalkin?: (table: AdminTable) => void,
+  hasPending?: boolean,
+  onCheckinOnline?: (table: AdminTable) => void
 }) => {
   const status = table.displayStatus;
   const reservableBookingId = booking?.id ?? table.nextBookingId;
@@ -115,12 +119,22 @@ export const TableCard = ({
       )}
 
       {status === 'Available' && (
-        <button 
-          onClick={(e) => { e.stopPropagation(); onWalkin?.(table); }}
-          className="mt-2 w-full py-2 bg-neutral-800 text-white rounded-lg font-bold text-sm hover:bg-neutral-700 transition-colors"
-        >
-          Khách vãng lai
-        </button>
+        <div className="mt-2 flex gap-2">
+          {hasPending && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); onCheckinOnline?.(table); }}
+              className="flex-1 py-2 bg-amber-600 text-white rounded-lg font-bold text-sm hover:bg-amber-700 transition-colors whitespace-nowrap"
+            >
+              Chờ xếp
+            </button>
+          )}
+          <button 
+            onClick={(e) => { e.stopPropagation(); onWalkin?.(table); }}
+            className="flex-1 py-2 bg-neutral-800 text-white rounded-lg font-bold text-sm hover:bg-neutral-700 transition-colors whitespace-nowrap"
+          >
+            Vãng lai
+          </button>
+        </div>
       )}
     </div>
   );

@@ -8,6 +8,7 @@ import { Navigate, Routes, Route, useNavigate } from 'react-router-dom';
 import { getDefaultRouteForRole, useAuth } from './hooks/useAuth';
 import Register from './pages/Register';
 import Login from './pages/Login';
+import Home from './pages/Home';
 import FloorPlan from './pages/FloorPlan';
 import Coaches from './pages/Coaches';
 import Membership from './pages/Membership';
@@ -58,7 +59,7 @@ export default function App() {
   return (
     <Routes>
       {/* Public / Unauthenticated Routes */}
-      <Route path="/" element={<RootRedirect onNavigate={handleNavigate} />} />
+      <Route path="/" element={<Home onNavigate={handleNavigate} />} />
       <Route path="/login" element={<RootRedirect onNavigate={handleNavigate} />} />
       <Route path="/register" element={<Register onNavigate={handleNavigate} />} />
 

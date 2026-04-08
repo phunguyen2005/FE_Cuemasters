@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowRight, Flag, Globe } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Flag, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getDefaultRouteForRole } from '../hooks/useAuth';
 import { ScreenProps } from '../types';
@@ -38,6 +38,11 @@ export default function Register({ onNavigate }: ScreenProps) {
       setError(err.response?.data?.message || 'Đăng ký thất bại. Xin thử lại sau.');
     }
   };
+
+  const handleBackToLogin = () => {
+    onNavigate('login');
+  };
+
   return (
     <main className="min-h-screen flex flex-col md:flex-row text-on-surface antialiased overflow-x-hidden">
       {/* Left Side: Visual Anchor */}
@@ -97,6 +102,17 @@ export default function Register({ onNavigate }: ScreenProps) {
       
       {/* Right Side: Register Form */}
       <section className="w-full md:w-1/2 lg:w-2/5 bg-surface flex flex-col justify-center px-8 py-12 lg:px-20 min-h-screen">
+        <div className="mb-8">
+          <button
+            type="button"
+            onClick={handleBackToLogin}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-secondary transition-colors hover:text-primary"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Về đăng nhập</span>
+          </button>
+        </div>
+
         <div className="mb-10 text-left">
           <div className="md:hidden mb-8">
             <span className="brand-font text-primary font-black tracking-tighter text-2xl">CueMasters</span>
@@ -216,6 +232,7 @@ export default function Register({ onNavigate }: ScreenProps) {
           <p className="font-body text-sm text-secondary">
             Đã có tài khoản? 
             <button 
+              type="button"
               onClick={() => onNavigate('login')}
               className="text-primary font-bold hover:underline ml-1"
             >

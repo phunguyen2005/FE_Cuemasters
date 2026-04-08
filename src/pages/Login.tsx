@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Quote, Globe } from 'lucide-react';
+import { ArrowLeft, Quote, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getDefaultRouteForRole } from '../hooks/useAuth';
 import { ScreenProps } from '../types';
@@ -30,10 +30,25 @@ export default function Login({ onNavigate }: ScreenProps) {
       setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
     }
   };
+
+  const handleBackToHome = () => {
+    navigate('/');
+  };
   return (
     <main className="min-h-screen flex flex-col md:flex-row bg-surface text-on-surface antialiased overflow-hidden">
       {/* Left Side: Form Section */}
       <section className="w-full md:w-[45%] lg:w-[40%] flex flex-col justify-center px-8 md:px-16 lg:px-24 bg-surface py-12 overflow-y-auto no-scrollbar">
+        <div className="mb-8">
+          <button
+            type="button"
+            onClick={handleBackToHome}
+            className="inline-flex items-center gap-2 text-sm font-semibold text-secondary transition-colors hover:text-primary"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>Về trang chủ</span>
+          </button>
+        </div>
+
         {/* Brand Identity */}
         <div className="mb-12">
           <span className="brand-font text-2xl font-black tracking-tighter text-on-surface">CueMasters</span>
@@ -123,6 +138,7 @@ export default function Login({ onNavigate }: ScreenProps) {
         <p className="mt-12 text-center text-secondary text-sm">
           Chưa có tài khoản? 
           <button 
+            type="button"
             onClick={() => onNavigate('register')}
             className="text-primary font-bold hover:underline underline-offset-4 ml-1"
           >

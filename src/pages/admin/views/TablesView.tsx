@@ -52,6 +52,7 @@ export const TablesView = () => {
   const [orderPanelTable, setOrderPanelTable] = useState<AdminTable | null>(null);
   const [checkoutBooking, setCheckoutBooking] = useState<{booking: any, table: AdminTable} | null>(null);
   const [walkInTable, setWalkInTable] = useState<AdminTable | null>(null);
+  const [selectedTableForCheckin, setSelectedTableForCheckin] = useState<AdminTable | null>(null);
   const [bookings, setBookings] = useState<any[]>([]);
   const [pendingCheckins, setPendingCheckins] = useState<PendingCheckin[]>([]);
   const [selectedPendingBooking, setSelectedPendingBooking] = useState<PendingCheckin | null>(null);
@@ -314,10 +315,22 @@ export const TablesView = () => {
                       </td>
                       <td className="py-3 px-4 font-medium text-primary">{table.hourlyRate?.toLocaleString() || 0}đ</td>
                       <td className="py-3 px-4 text-right">
-                        {status === 'Available' && (
-                          <button aria-label="Khách vãng lai" title="Khách vãng lai" onClick={(e) => { e.stopPropagation(); setWalkInTable(table); }} className="p-2 text-neutral-400 hover:text-neutral-900 transition-colors mr-2 text-xs font-bold uppercase">
-                            Vãng lai
+                        {status === 'InUse' && booking && (
+                          <button aria-label="Thanh toán" title="Thanh toán" onClick={(e) => { e.stopPropagation(); setCheckoutBooking({ booking, table }); }} className="p-2 text-primary hover:text-primary-600 transition-colors mr-2 text-xs font-bold uppercase">
+                            Thanh toán
                           </button>
+                        )}
+                        {status === 'Available' && (
+                          <>
+                            {pendingCheckins.some(p => p.requestedTableType === table.type) && (
+                              <button aria-label="Chờ xếp" title="Khách chờ xếp online" onClick={(e) => { e.stopPropagation(); setSelectedTableForCheckin(table); }} className="p-2 text-amber-600 hover:text-amber-700 transition-colors mr-2 text-xs font-bold uppercase">
+                                Chờ xếp
+                              </button>
+                            )}
+                            <button aria-label="Khách vãng lai" title="Khách vãng lai" onClick={(e) => { e.stopPropagation(); setWalkInTable(table); }} className="p-2 text-neutral-400 hover:text-neutral-900 transition-colors mr-2 text-xs font-bold uppercase">
+                              Vãng lai
+                            </button>
+                          </>
                         )}
                         <button aria-label={`Sửa bàn ${table.tableNumber}`} title={`Sửa bàn ${table.tableNumber}`} onClick={(e) => { e.stopPropagation(); openEdit(table); }} className="p-2 text-neutral-400 hover:text-primary transition-colors">
                           <Edit size={16} />
@@ -373,6 +386,8 @@ export const TablesView = () => {
                   onCheckin={handleCheckin}
                   onCheckout={(b, t) => setCheckoutBooking({ booking: b, table: t })}
                   onWalkin={(t) => setWalkInTable(t)}
+                  hasPending={pendingCheckins.some(p => p.requestedTableType === table.type)}
+                  onCheckinOnline={(t) => setSelectedTableForCheckin(t)}
                 />
               );
             })}
@@ -492,6 +507,43 @@ export const TablesView = () => {
             ))}
             {adminTables.filter(t => t.displayStatus === 'Available' && t.type === selectedPendingBooking?.requestedTableType).length === 0 && (
               <div className="col-span-3 text-center py-4 text-error bg-error/10 rounded-xl font-medium border border-error/20">Không có bàn trống loại này! Vui lòng dọn dẹp hoặc đợi khách khác trả bàn.</div>
+            )}
+          </div>
+        </div>
+      </AdminModal>
+
+      <AdminModal isOpen={!!selectedTableForCheckin} onClose={() => setSelectedTableForCheckin(null)} title="Chọn khách online cho bàn này">
+        <div className="space-y-4">
+          <p className="text-sm text-neutral-600">Chọn một khách đang chờ loại bàn <strong>{selectedTableForCheckin?.type}</strong> để xếp vào bàn <strong>{selectedTableForCheckin?.tableNumber}</strong>.</p>
+          <div className="grid grid-cols-1 gap-3">
+            {pendingCheckins.filter(p => p.requestedTableType === selectedTableForCheckin?.type).map(pb => (
+              <div key={pb.bookingId} className="flex justify-between items-center p-4 border-2 border-amber-200 bg-amber-50 rounded-xl">
+                <div>
+                  <h4 className="font-bold text-amber-900">{pb.guestName || pb.userFullName || 'Khách online'}</h4>
+                  <div className="text-sm text-amber-700/80 mt-1 flex items-center gap-1">
+                    <Clock size={14} /> {formatClockTime(pb.startTime)} - {formatClockTime(pb.endTime)}
+                  </div>
+                </div>
+                <button 
+                  onClick={async () => {
+                    if (!selectedTableForCheckin) return;
+                    try {
+                      await adminService.checkinBooking(pb.bookingId, { tableId: selectedTableForCheckin.id });
+                      alert('Check-in thành công!');
+                      setSelectedTableForCheckin(null);
+                      loadData();
+                    } catch (e: any) {
+                      alert(e.response?.data?.message || 'Có lỗi xảy ra');
+                    }
+                  }}
+                  className="px-4 py-2 bg-amber-600 text-white font-bold rounded-lg hover:bg-amber-700 transition-colors"
+                >
+                  Xếp vào đây
+                </button>
+              </div>
+            ))}
+            {pendingCheckins.filter(p => p.requestedTableType === selectedTableForCheckin?.type).length === 0 && (
+              <div className="text-center py-4 text-neutral-500 bg-neutral-50 rounded-xl border border-neutral-200">Không có khách online nào đang chờ loại bàn này.</div>
             )}
           </div>
         </div>

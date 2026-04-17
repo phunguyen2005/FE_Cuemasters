@@ -1,25 +1,24 @@
-import React, { useState, useEffect } from 'react';
-import { adminService } from '../../../services/adminService';
+import React, { useEffect, useState } from 'react';
 import { Plus, Edit, Trash2 } from 'lucide-react';
+import { adminService } from '../../../services/adminService';
 import { AdminModal } from '../components/AdminModal';
 import { ConfirmDialog } from '../components/ConfirmDialog';
+import { getFnBCategoryLabel } from '../../../utils/labels';
 
 export const MenuView = () => {
   const [menuItems, setMenuItems] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState('All');
   const tabs = [
     { label: 'Tất cả', value: 'All' },
-    { label: 'Drinks', value: 'Drinks' },
-    { label: 'Snacks', value: 'Snacks' },
-    { label: 'Combos', value: 'Combos' },
-    { label: 'Main Course', value: 'MainCourse' }
+    { label: 'Đồ uống', value: 'Drinks' },
+    { label: 'Ăn nhẹ', value: 'Snacks' },
+    { label: 'Combo', value: 'Combos' },
+    { label: 'Món chính', value: 'MainCourse' },
   ];
 
-  // Pagination
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 8;
 
-  // Modals
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -27,33 +26,43 @@ export const MenuView = () => {
 
   const [formData, setFormData] = useState({
     name: '',
-    description: '',
     price: 0,
     category: 'Drinks',
     imageUrl: '',
-    isAvailable: true
+    isAvailable: true,
   });
 
   const loadData = async () => {
     try {
       const data = await adminService.getFnBItems();
       setMenuItems(data.items || data);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
     }
   };
 
   useEffect(() => {
-    loadData();
+    void loadData();
   }, []);
 
-  const filteredItems = menuItems.filter(item => activeTab === 'All' || item.category === activeTab);
+  const filteredItems = menuItems.filter(
+    (item) => activeTab === 'All' || item.category === activeTab,
+  );
   const totalPages = Math.ceil(filteredItems.length / itemsPerPage);
-  const paginatedData = filteredItems.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+  const paginatedData = filteredItems.slice(
+    (currentPage - 1) * itemsPerPage,
+    currentPage * itemsPerPage,
+  );
 
   const openCreate = () => {
     setEditingItem(null);
-    setFormData({ name: '', description: '', price: 0, category: 'Drinks', imageUrl: '', isAvailable: true });
+    setFormData({
+      name: '',
+      price: 0,
+      category: 'Drinks',
+      imageUrl: '',
+      isAvailable: true,
+    });
     setIsModalOpen(true);
   };
 
@@ -61,11 +70,10 @@ export const MenuView = () => {
     setEditingItem(item);
     setFormData({
       name: item.name,
-      description: item.description || '',
       price: item.price,
       category: item.category || 'Drinks',
       imageUrl: item.imageUrl || '',
-      isAvailable: item.isAvailable
+      isAvailable: item.isAvailable,
     });
     setIsModalOpen(true);
   };
@@ -77,17 +85,17 @@ export const MenuView = () => {
         category: item.category,
         price: item.price,
         imageUrl: item.imageUrl,
-        isAvailable: !item.isAvailable
+        isAvailable: !item.isAvailable,
       });
-      loadData();
-    } catch (e) {
-      console.error(e);
-      alert('Error updating availability');
+      await loadData();
+    } catch (error) {
+      console.error(error);
+      alert('Không thể cập nhật trạng thái mở bán.');
     }
   };
 
-  const handleSave = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSave = async (event: React.FormEvent) => {
+    event.preventDefault();
     try {
       if (editingItem) {
         await adminService.updateFnBItem(editingItem.id, formData);
@@ -95,10 +103,10 @@ export const MenuView = () => {
         await adminService.createFnBItem(formData);
       }
       setIsModalOpen(false);
-      loadData();
-    } catch (e: any) {
-      console.error(e);
-      alert(e.response?.data?.message || e.message || 'Error saving F&B item!');
+      await loadData();
+    } catch (error: any) {
+      console.error(error);
+      alert(error.response?.data?.message || error.message || 'Không thể lưu món F&B.');
     }
   };
 
@@ -108,67 +116,118 @@ export const MenuView = () => {
       await adminService.deleteFnBItem(deletingId);
       setIsDeleteOpen(false);
       setDeletingId(null);
-      loadData();
-    } catch (e: any) {
-      console.error(e);
-      alert(e.response?.data?.message || e.message || 'Error deleting F&B item!');
+      await loadData();
+    } catch (error: any) {
+      console.error(error);
+      alert(error.response?.data?.message || error.message || 'Không thể xóa món F&B.');
     }
   };
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-500">
-      <div className="flex justify-between items-center">
-        <div className="flex gap-2">
-          {tabs.map(tab => (
+    <div className="animate-in fade-in space-y-6 p-8 duration-500">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex flex-wrap gap-2">
+          {tabs.map((tab) => (
             <button
               key={tab.value}
-              onClick={() => { setActiveTab(tab.value); setCurrentPage(1); }}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-colors ${activeTab === tab.value
-                ? 'bg-neutral-900 text-white'
-                : 'bg-surface-lowest text-neutral-600 border border-neutral-200 hover:bg-surface-low'
-                }`}
+              onClick={() => {
+                setActiveTab(tab.value);
+                setCurrentPage(1);
+              }}
+              className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
+                activeTab === tab.value
+                  ? 'bg-neutral-900 text-white'
+                  : 'border border-neutral-200 bg-surface-lowest text-neutral-600 hover:bg-surface-low'
+              }`}
             >
               {tab.label}
             </button>
           ))}
         </div>
-        <button onClick={openCreate} className="flex items-center gap-2 bg-primary text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors">       
+
+        <button
+          onClick={openCreate}
+          className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary/90"
+        >
           <Plus size={16} /> Thêm món mới
         </button>
       </div>
 
       <div className="grid grid-cols-4 gap-6">
         {paginatedData.map((item: any) => (
-          <div key={item.id} className={`bg-surface-lowest rounded-2xl border ${!item.isAvailable ? 'border-neutral-200 opacity-60' : 'border-neutral-100'} shadow-sm overflow-hidden group`}>
-            <div className="h-48 relative overflow-hidden">
-              <img src={(item.imageUrl || "https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=500&q=80")} alt={item.name} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+          <div
+            key={item.id}
+            className={`group overflow-hidden rounded-2xl border bg-surface-lowest shadow-sm ${
+              !item.isAvailable ? 'border-neutral-200 opacity-60' : 'border-neutral-100'
+            }`}
+          >
+            <div className="relative h-48 overflow-hidden">
+              <img
+                src={
+                  item.imageUrl ||
+                  'https://images.unsplash.com/photo-1572442388796-11668a67e53d?w=500&q=80'
+                }
+                alt={item.name}
+                className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
               {!item.isAvailable && (
-                <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
-                  <span className="bg-white text-neutral-900 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider">Ngừng bán</span>
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                  <span className="rounded-full bg-white px-3 py-1 text-xs font-bold uppercase tracking-[0.18em] text-neutral-900">
+                    Ngừng bán
+                  </span>
                 </div>
               )}
             </div>
             <div className="p-5">
-              <div className="flex justify-between items-start mb-2 gap-2">
-                <h3 className="font-headline font-bold text-lg text-neutral-900 line-clamp-1 flex-1">{item.name}</h3>
-                
-                <button 
-                  onClick={() => toggleAvailability(item)}
-                  title={item.isAvailable ? "Đang bán - Nhấn để ngừng bán" : "Đã ngừng bán - Nhấn để mở bán lại"}
-                  className={`relative w-10 h-5 rounded-full p-0.5 cursor-pointer transition-colors shrink-0 ${item.isAvailable ? 'bg-tertiary' : 'bg-neutral-300'}`}
-                >
-                  <div className={`w-4 h-4 rounded-full bg-white shadow-sm transition-transform ${item.isAvailable ? 'translate-x-5' : 'translate-x-0'}`}></div>
-                </button>
+              <div className="mb-2 flex items-start justify-between gap-2">
+                <h3 className="flex-1 line-clamp-1 font-headline text-lg font-bold text-neutral-900">
+                  {item.name}
+                </h3>
 
+                <button
+                  onClick={() => toggleAvailability(item)}
+                  title={
+                    item.isAvailable
+                      ? 'Đang mở bán - nhấn để tạm ngưng'
+                      : 'Đã tạm ngưng - nhấn để mở bán lại'
+                  }
+                  className={`relative h-5 w-10 shrink-0 cursor-pointer rounded-full p-0.5 transition-colors ${
+                    item.isAvailable ? 'bg-tertiary' : 'bg-neutral-300'
+                  }`}
+                >
+                  <div
+                    className={`h-4 w-4 rounded-full bg-white shadow-sm transition-transform ${
+                      item.isAvailable ? 'translate-x-5' : 'translate-x-0'
+                    }`}
+                  ></div>
+                </button>
               </div>
-              <p className="text-sm text-neutral-500 mb-4 line-clamp-2 h-10">{item.description || item.category}</p>
-              <div className="flex justify-between items-center pt-4 border-t border-neutral-100">
-                <span className="font-bold text-primary text-lg">{`${item.price?.toLocaleString() ?? 0}đ`}</span>
+              <p className="mb-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-neutral-400">
+                {getFnBCategoryLabel(item.category)}
+              </p>
+              <p className="mb-4 h-10 line-clamp-2 text-sm text-neutral-500">
+                {item.description || 'Món đang chờ bổ sung mô tả ngắn.'}
+              </p>
+              <div className="flex items-center justify-between border-t border-neutral-100 pt-4">
+                <span className="text-lg font-bold text-primary">
+                  {`${item.price?.toLocaleString() ?? 0}đ`}
+                </span>
                 <div className="flex gap-2">
-                  <button onClick={() => openEdit(item)} className="p-2 text-neutral-400 hover:text-primary transition-colors">
+                  <button
+                    onClick={() => openEdit(item)}
+                    className="p-2 text-neutral-400 transition-colors hover:text-primary"
+                    title="Sửa món"
+                  >
                     <Edit size={16} />
                   </button>
-                  <button onClick={() => { setDeletingId(item.id); setIsDeleteOpen(true); }} className="p-2 text-neutral-400 hover:text-red-500 transition-colors">
+                  <button
+                    onClick={() => {
+                      setDeletingId(item.id);
+                      setIsDeleteOpen(true);
+                    }}
+                    className="p-2 text-neutral-400 transition-colors hover:text-red-500"
+                    title="Xóa món"
+                  >
                     <Trash2 size={16} />
                   </button>
                 </div>
@@ -179,59 +238,126 @@ export const MenuView = () => {
       </div>
 
       {totalPages > 1 && (
-        <div className="flex justify-center mt-8">
+        <div className="mt-8 flex justify-center">
           <div className="flex gap-1">
-            {Array.from({ length: totalPages }).map((_, i) => (
-              <button 
-                key={i} 
-                onClick={() => setCurrentPage(i + 1)}
-                className={`w-8 h-8 flex items-center justify-center rounded-md text-sm ${currentPage === i + 1 ? 'bg-neutral-900 text-white' : 'text-neutral-500 hover:bg-surface-low'}`}
+            {Array.from({ length: totalPages }).map((_, index) => (
+              <button
+                key={index}
+                onClick={() => setCurrentPage(index + 1)}
+                className={`flex h-8 w-8 items-center justify-center rounded-md text-sm ${
+                  currentPage === index + 1
+                    ? 'bg-neutral-900 text-white'
+                    : 'text-neutral-500 hover:bg-surface-low'
+                }`}
               >
-                {i + 1}
+                {index + 1}
               </button>
             ))}
           </div>
         </div>
       )}
 
-      <AdminModal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title={editingItem ? "Chỉnh sửa món" : "Thêm món mới"}>
+      <AdminModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        title={editingItem ? 'Chỉnh sửa món' : 'Thêm món mới'}
+      >
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">Tên món</label>
-            <input required type="text" className="w-full px-4 py-2 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" value={formData.name} onChange={e => setFormData(f => ({ ...f, name: e.target.value }))} />
+            <label className="mb-1 block text-sm font-medium text-neutral-700">Tên món</label>
+            <input
+              required
+              type="text"
+              className="w-full rounded-xl border border-neutral-200 px-4 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={formData.name}
+              onChange={(event) =>
+                setFormData((current) => ({ ...current, name: event.target.value }))
+              }
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">Danh mục</label>
-            <select className="w-full px-4 py-2 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" value={formData.category} onChange={e => setFormData(f => ({ ...f, category: e.target.value }))}>
-              <option value="Drinks">Drinks</option>
-              <option value="Snacks">Snacks</option>
-              <option value="Combos">Combos</option>
-              <option value="MainCourse">Main Course</option>
+            <label className="mb-1 block text-sm font-medium text-neutral-700">Danh mục</label>
+            <select
+              className="w-full rounded-xl border border-neutral-200 px-4 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={formData.category}
+              onChange={(event) =>
+                setFormData((current) => ({ ...current, category: event.target.value }))
+              }
+            >
+              <option value="Drinks">Đồ uống</option>
+              <option value="Snacks">Ăn nhẹ</option>
+              <option value="Combos">Combo</option>
+              <option value="MainCourse">Món chính</option>
             </select>
           </div>
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">Giá bán</label>
-            <input required type="number" min="0" className="w-full px-4 py-2 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" value={formData.price} onChange={e => setFormData(f => ({ ...f, price: Number(e.target.value) }))} />
+            <label className="mb-1 block text-sm font-medium text-neutral-700">Giá bán</label>
+            <input
+              required
+              type="number"
+              min="0"
+              className="w-full rounded-xl border border-neutral-200 px-4 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={formData.price}
+              onChange={(event) =>
+                setFormData((current) => ({
+                  ...current,
+                  price: Number(event.target.value),
+                }))
+              }
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-neutral-700 mb-1">Link Ảnh (Tùy chọn)</label>
-            <input type="text" className="w-full px-4 py-2 rounded-xl border border-neutral-200 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary" value={formData.imageUrl} onChange={e => setFormData(f => ({ ...f, imageUrl: e.target.value }))} />
+            <label className="mb-1 block text-sm font-medium text-neutral-700">
+              Link ảnh (tùy chọn)
+            </label>
+            <input
+              type="text"
+              className="w-full rounded-xl border border-neutral-200 px-4 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              value={formData.imageUrl}
+              onChange={(event) =>
+                setFormData((current) => ({ ...current, imageUrl: event.target.value }))
+              }
+            />
           </div>
-          <div className="flex items-center gap-2 mt-2">
-            <input type="checkbox" id="isAvailable" checked={formData.isAvailable} onChange={e => setFormData(f => ({ ...f, isAvailable: e.target.checked }))} className="rounded text-primary focus:ring-primary h-4 w-4" />
-            <label htmlFor="isAvailable" className="text-sm font-medium text-neutral-700">Đang mở bán</label>
+          <div className="mt-2 flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="isAvailable"
+              checked={formData.isAvailable}
+              onChange={(event) =>
+                setFormData((current) => ({
+                  ...current,
+                  isAvailable: event.target.checked,
+                }))
+              }
+              className="h-4 w-4 rounded text-primary focus:ring-primary"
+            />
+            <label htmlFor="isAvailable" className="text-sm font-medium text-neutral-700">
+              Đang mở bán
+            </label>
           </div>
-          <div className="flex gap-4 mt-6 pt-4 border-t border-neutral-100">
-            <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2 bg-neutral-100 text-neutral-700 rounded-xl font-medium">Hủy</button>
-            <button type="submit" className="flex-1 py-2 bg-primary text-white rounded-xl font-medium">Lưu thay đổi</button>
+          <div className="mt-6 flex gap-4 border-t border-neutral-100 pt-4">
+            <button
+              type="button"
+              onClick={() => setIsModalOpen(false)}
+              className="flex-1 rounded-xl bg-neutral-100 py-2.5 text-sm font-medium text-neutral-700"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              className="flex-1 rounded-xl bg-primary py-2.5 text-sm font-medium text-white"
+            >
+              Lưu thay đổi
+            </button>
           </div>
         </form>
       </AdminModal>
 
-      <ConfirmDialog 
+      <ConfirmDialog
         isOpen={isDeleteOpen}
         title="Xóa món này?"
-        message="Thao tác này sẽ xóa món khỏi thực đơn và không thể hoàn tác nếu món chưa có dữ liệu quá khứ."
+        message="Thao tác này sẽ gỡ món khỏi thực đơn. Nếu món đã phát sinh lịch sử bán hàng, hệ thống sẽ tự xử lý theo quy định hiện tại."
         onClose={() => setIsDeleteOpen(false)}
         onConfirm={handleDelete}
       />

@@ -11,11 +11,9 @@ export const fnbService = {
       return [];
     }
   },
-  createOrderForBooking: async (bookingId: string, items: { menuItemId: number, quantity: number }[]) => {
+  createOrderForSession: async (sessionId: string, items: { menuItemId: number, quantity: number }[]) => {
     try {
-      // Flattens to array of ids as the C# service expects: `List<int> itemIds`
-      // Or just send items if the unknown endpoint expects { items }
-      const response = await api.post(`/fnb/order`, { bookingId, items });
+      const response = await api.post(`/sessions/${sessionId}/fnb`, { items });
       return response.data;
     } catch (error) {
       console.error("Failed to create fnb order", error);

@@ -1,1 +1,1 @@
-export type ViewType = 'dashboard' | 'tables' | 'coaches' | 'menu' | 'membership' | 'revenue';
+export type ViewType = 'dashboard' | 'tables' | 'coaches' | 'menu' | 'membership' | 'revenue' | 'buffers';

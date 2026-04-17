@@ -1,12 +1,26 @@
-export type Screen = 'register' | 'login' | 'dashboard' | 'admin' | 'membershipTiers' | 'bookingHistory' | 'floorPlan' | 'coaches' | 'settings';
+export type Screen =
+  | 'register'
+  | 'login'
+  | 'dashboard'
+  | 'admin'
+  | 'membershipTiers'
+  | 'bookingHistory'
+  | 'floorPlan'
+  | 'coaches'
+  | 'settings';
 
 export interface ScreenProps {
   onNavigate: (screen: Screen) => void;
 }
 
-// Domain Types
 export type Role = 'Customer' | 'Staff' | 'Admin';
 export type MembershipTier = 'Free' | 'Silver' | 'Gold';
+export type TableType = 'Pool' | 'Snooker' | 'Carom';
+export type TableStatus = 'Available' | 'Reserved' | 'InUse' | 'Maintenance';
+export type AdminTableDisplayStatus = 'Available' | 'Reserved' | 'InUse' | 'Maintenance' | 'Inactive';
+export type BookingStatus = 'Pending' | 'Confirmed' | 'InProgress' | 'Completed' | 'Cancelled' | 'NoShow';
+export type PaymentMethod = 'Cash' | 'VnPay' | 'Stripe';
+export type PaymentStatus = 'Pending' | 'Completed' | 'Failed' | 'Refunded';
 
 export interface User {
   id: string;
@@ -35,9 +49,6 @@ export interface ApiMessageResponse {
   message: string;
 }
 
-export type TableType = 'Pool' | 'Snooker' | 'Carom';
-export type TableStatus = 'Available' | 'Reserved' | 'InUse' | 'Maintenance';  
-
 export interface BilliardTable {
   id: number;
   tableNumber: string;
@@ -48,24 +59,23 @@ export interface BilliardTable {
   positionY?: number;
 }
 
-export type AdminTableDisplayStatus = 'Available' | 'Reserved' | 'InUse' | 'Maintenance' | 'Inactive';
-
 export interface AdminTable {
   id: number;
   tableNumber: string;
-  type: string;
+  type: TableType;
   hourlyRate: number;
-  manualStatus: string;
+  manualStatus: 'Available' | 'Maintenance';
   displayStatus: AdminTableDisplayStatus;
   isActive: boolean;
-  positionX?: number;
-  positionY?: number;
-  currentCustomerName?: string;
-  currentSessionStartedAt?: string;
-  nextBookingStartTime?: string;
-  nextBookingId?: string;
-  nextCustomerName?: string;
+  positionX?: number | null;
+  positionY?: number | null;
+  currentCustomerName?: string | null;
+  currentSessionStartedAt?: string | null;
+  nextBookingStartTime?: string | null;
+  nextBookingId?: string | null;
+  nextCustomerName?: string | null;
   currentSessionAmount: number;
+  activeSessionId?: string | null;
 }
 
 export interface PendingCheckin {
@@ -90,6 +100,20 @@ export interface UpcomingWarning {
   minutesRemaining: number;
 }
 
+export interface FloorPlanSnapshotTable {
+  tableId: number;
+  tableNumber: string;
+  type: TableType;
+  realTimeStatus: 'Available' | 'Occupied' | 'Reserved' | 'Maintenance';
+  activeSessionId?: string | null;
+}
+
+export interface FloorPlanSnapshot {
+  date: string;
+  generatedAt: string;
+  tables: FloorPlanSnapshotTable[];
+}
+
 export interface TableAvailabilitySlot {
   startTime: string;
   endTime: string;
@@ -110,8 +134,9 @@ export interface Coach {
   specialty: string;
   bio: string;
   hourlyRate: number;
+  rating: number;
   avatarUrl: string;
-  isActive: boolean;
+  isActive?: boolean;
 }
 
 export interface CoachAvailabilitySlot {
@@ -140,24 +165,24 @@ export interface UpsertStaffAvailabilityRequest {
 export interface FnBMenuItem {
   id: number;
   name: string;
-  description: string;
+  description?: string;
   price: number;
   category: string;
-  imageUrl: string;
+  imageUrl?: string | null;
   isAvailable: boolean;
+}
+
+export interface FnBOrderItem {
+  menuItemId: number;
+  quantity: number;
+  priceAtTime?: number;
 }
 
 export interface FnBOrder {
   id: string;
-  bookingId: string;
-  totalAmount: number;
+  totalPrice?: number;
   status: 'Pending' | 'Preparing' | 'Served' | 'Cancelled';
-  createdAt: string;
-  items: {
-    menuItemId: number;
-    quantity: number;
-    priceAtTime: number;
-  }[];
+  items?: FnBOrderItem[];
 }
 
 export interface MembershipPlan {
@@ -219,7 +244,24 @@ export interface AdminUpsertMembershipPlanRequest {
   isActive: boolean;
 }
 
-export type BookingStatus = 'Pending' | 'Confirmed' | 'InProgress' | 'Completed' | 'Cancelled' | 'NoShow';
+export interface Payment {
+  id: string;
+  amount: number;
+  status: PaymentStatus;
+  method?: string;
+  type?: string;
+  transactionId?: string;
+  createdAt?: string;
+  completedAt?: string | null;
+}
+
+export interface CoachSummary {
+  id: string;
+  userId?: string;
+  fullName: string;
+  specialty?: string;
+  hourlyRate?: number;
+}
 
 export interface Booking {
   id: string;
@@ -234,21 +276,62 @@ export interface Booking {
   totalPrice: number;
   depositAmount?: number;
   depositForfeited?: boolean;
-  checkedInAt?: string;
-  checkedOutAt?: string;
-  actualCost?: number;
-  guestName?: string;
+  checkedInAt?: string | null;
+  checkedOutAt?: string | null;
+  assignedAt?: string | null;
+  actualCost?: number | null;
+  guestName?: string | null;
   createdAt: string;
-  coachingSession?: {
-    coachId: string;
-    coachName: string;
-    hourlyRate: number;
-  };
+  notes?: string | null;
+  payment?: Payment | null;
+  coach?: CoachSummary | null;
   fnBOrders?: FnBOrder[];
+  fnBTotal?: number;
+  coachingTotal?: number;
+  discountAmount?: number;
 }
 
 export interface BookingListResponse {
   items: Booking[];
+  totalItems: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface AdminBooking {
+  id: string;
+  userId: string;
+  userFullName: string;
+  userEmail: string;
+  tableId: number | null;
+  tableNumber?: string | null;
+  requestedTableType: TableType;
+  bookingDate: string;
+  startTime: string;
+  endTime: string;
+  totalPrice: number;
+  discountAmount: number;
+  fnBTotal: number;
+  coachingTotal: number;
+  paymentAmount: number;
+  paymentStatus?: string | null;
+  status: BookingStatus;
+  bookingType?: string;
+  depositAmount: number;
+  depositForfeited: boolean;
+  checkedInAt?: string | null;
+  checkedOutAt?: string | null;
+  assignedAt?: string | null;
+  actualCost?: number | null;
+  guestName?: string | null;
+  createdAt: string;
+  cancelledAt?: string | null;
+  coachName?: string | null;
+}
+
+export interface AdminBookingListResponse {
+  items: AdminBooking[];
   totalItems: number;
   page: number;
   pageSize: number;
@@ -266,6 +349,17 @@ export interface CreateBookingRequest {
   startTime: string;
   endTime: string;
   fnBOrders?: CreateFnBOrderRequest[];
+}
+
+export interface CreateBookingResponse {
+  message: string;
+  reservationId?: string;
+  bookingId?: string;
+}
+
+export interface RescheduleBookingRequest {
+  newStartTime: string;
+  newEndTime: string;
 }
 
 export interface CreateCoachingSessionRequest {
@@ -295,36 +389,133 @@ export interface CategoryAvailabilitySlot {
 export interface CategoryAvailability {
   tableType: TableType;
   date: string;
+  totalTables: number;
+  bufferSize: number;
+  onlineCapacity: number;
   slots: CategoryAvailabilitySlot[];
 }
 
-
-export interface CreateBookingResponse {
-  message: string;
-  bookingId: string;
+export interface AdminDashboardStats {
+  revenue: number;
+  activeSessions: number;
+  totalBookings: number;
+  availableTables: number;
+  totalTables: number;
+  activeCoaches: number;
+  menuItems: number;
+  activeMemberships: number;
+  noShowsToday: number;
+  forfeitedDepositsToday: number;
 }
 
-export interface Payment {
-  id: string;
+export interface RunningTotal {
+  tableTimeCost: number;
+  fnBTotal: number;
+  coachingTotal: number;
+  subtotal: number;
+  depositApplied: number;
+  estimatedBalanceDue: number;
+  note: string;
+}
+
+export interface CheckoutSummary {
   bookingId: string;
+  tableNumber: string;
+  customerName?: string | null;
+  bookingType?: string;
+  checkedInAt?: string | null;
+  checkedOutAt: string;
+  actualDurationHours: number;
+  tableCost: number;
+  fnBCost: number;
+  coachingCost: number;
+  discountAmount: number;
+  depositAmount: number;
+  totalCost: number;
+  amountDue: number;
+}
+
+export interface LinkableCoachSession {
+  id: string;
+  coachId: string;
+  coachName: string;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+  cost: number;
+}
+
+export interface AdminRevenuePoint {
+  label: string;
+  revenue: number;
+  bookingCount: number;
+}
+
+export interface AdminRevenueSource {
+  label: string;
   amount: number;
-  status: 'Pending' | 'Completed' | 'Failed' | 'Refunded';
-  paymentMethod: 'Cash' | 'CreditCard' | 'BankTransfer' | 'EWallet';
-  transactionId?: string;
-  createdAt: string;
-  completedAt?: string;
+  percentage: number;
+}
+
+export interface AdminHeatmapCell {
+  dayOfWeek: number;
+  hour: number;
+  bookingCount: number;
+  occupancyRate: number;
+}
+
+export interface AdminPeakHour {
+  hour: number;
+  bookingCount: number;
+  occupancyRate: number;
+}
+
+export interface AdminAnalytics {
+  period: string;
+  basis: 'service' | 'payment';
+  revenueByPeriod: AdminRevenuePoint[];
+  revenueBySource: AdminRevenueSource[];
+  occupancyHeatmap: AdminHeatmapCell[];
+  peakHours: AdminPeakHour[];
+  averageOccupancyRate: number;
+  peakOccupancyRate: number;
 }
 
 export interface CreateTableRequest {
   tableNumber: string;
   type: TableType;
   hourlyRate: number;
-  status: TableStatus;
+  status: 'Available' | 'Maintenance';
+  isActive?: boolean;
+  positionX?: number | null;
+  positionY?: number | null;
 }
 
 export interface UpdateTableRequest {
   tableNumber?: string;
   type?: TableType;
   hourlyRate?: number;
-  status?: TableStatus;
+  status?: 'Available' | 'Maintenance';
+  isActive?: boolean;
+  positionX?: number | null;
+  positionY?: number | null;
+}
+
+export interface BufferConfig {
+  id: number;
+  tableType: TableType;
+  dayOfWeek?: number | null;
+  timeFrom?: string | null;
+  timeTo?: string | null;
+  bufferCount: number;
+  isActive: boolean;
+}
+
+export interface UpsertBufferConfigRequest {
+  tableType: TableType;
+  dayOfWeek?: number | null;
+  timeFrom?: string | null;
+  timeTo?: string | null;
+  bufferCount: number;
+  isActive: boolean;
 }

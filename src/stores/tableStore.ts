@@ -1,12 +1,12 @@
 import { create } from 'zustand';
-import { BilliardTable } from '../types';
+import { BilliardTable, TableStatus } from '../types';
 import { tableService } from '../services/tableService';
 
 interface TableState {
   tables: BilliardTable[];
   isLoading: boolean;
   fetchTables: () => Promise<void>;
-  updateTableStatus: (tableId: number, status: string) => void;
+  updateTableStatus: (tableId: number, status: TableStatus) => void;
 }
 
 export const useTableStore = create<TableState>((set) => ({
@@ -19,7 +19,7 @@ export const useTableStore = create<TableState>((set) => ({
   },
   updateTableStatus: (tableId, status) => set((state) => ({
     tables: state.tables.map((t) => 
-      t.id === tableId ? { ...t, status: status as any } : t
+      t.id === tableId ? { ...t, status } : t
     )
   })),
 }));

@@ -3,6 +3,7 @@ import { Plus, X } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
 import { AdminMembershipPlan, AdminUpsertMembershipPlanRequest } from '../../../types';
 import { formatCurrency } from '../../../utils/formatCurrency';
+import { getMembershipTierLabel } from '../../../utils/labels';
 
 const EMPTY_FORM: AdminUpsertMembershipPlanRequest = {
   tier: 'Free',
@@ -16,9 +17,9 @@ const EMPTY_FORM: AdminUpsertMembershipPlanRequest = {
 };
 
 const getAdvanceWindowLabel = (days: number) => {
-  if (days <= 0) return 'Trong ngay';
-  if (days === 1) return '1 ngay';
-  return `${days} ngay`;
+  if (days <= 0) return 'Trong ngày';
+  if (days === 1) return '1 ngày';
+  return `${days} ngày`;
 };
 
 const getErrorMessage = (error: unknown, fallbackMessage: string) => {
@@ -66,7 +67,7 @@ export const MembershipView = () => {
     } catch (error) {
       setNotice({
         type: 'error',
-        message: getErrorMessage(error, 'Khong the tai danh sach goi thanh vien.'),
+        message: getErrorMessage(error, 'Không thể tải danh sách gói thành viên.'),
       });
     } finally {
       setIsLoading(false);
@@ -113,10 +114,10 @@ export const MembershipView = () => {
     try {
       if (editingPlanId !== null) {
         await adminService.updateMembership(editingPlanId, formData);
-        setNotice({ type: 'success', message: 'Da cap nhat goi thanh vien.' });
+        setNotice({ type: 'success', message: 'Đã cập nhật gói thành viên.' });
       } else {
         await adminService.createMembership(formData);
-        setNotice({ type: 'success', message: 'Da tao goi thanh vien moi.' });
+        setNotice({ type: 'success', message: 'Đã tạo gói thành viên mới.' });
       }
 
       handleCloseModal();
@@ -124,7 +125,7 @@ export const MembershipView = () => {
     } catch (error) {
       setNotice({
         type: 'error',
-        message: getErrorMessage(error, 'Co loi xay ra khi luu goi thanh vien.'),
+        message: getErrorMessage(error, 'Có lỗi xảy ra khi lưu gói thành viên.'),
       });
       setIsLoading(false);
     }
@@ -132,7 +133,7 @@ export const MembershipView = () => {
 
   const handleDelete = async (plan: AdminMembershipPlan) => {
     const confirmed = window.confirm(
-      `Ban co chac chan muon xoa goi ${plan.name}? Neu con subscriber active, backend se chi deactive plan.`,
+      `Bạn có chắc muốn xóa gói ${plan.name}? Nếu còn người dùng đang sử dụng, gói sẽ được chuyển sang tạm ngưng thay vì xóa hẳn.`,
     );
     if (!confirmed) return;
 
@@ -143,13 +144,13 @@ export const MembershipView = () => {
       const response = await adminService.deleteMembership(plan.id);
       setNotice({
         type: 'success',
-        message: response?.message || 'Da xu ly thao tac xoa goi thanh vien.',
+        message: response?.message || 'Đã xử lý thao tác xóa gói thành viên.',
       });
       await fetchPlans();
     } catch (error) {
       setNotice({
         type: 'error',
-        message: getErrorMessage(error, 'Co loi xay ra khi xoa goi thanh vien.'),
+        message: getErrorMessage(error, 'Có lỗi xảy ra khi xóa gói thành viên.'),
       });
       setIsLoading(false);
     }
@@ -160,16 +161,15 @@ export const MembershipView = () => {
       <div className="mb-8 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
         <div className="space-y-3">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">
-            Membership Admin
+            Quản lý gói thành viên
           </p>
           <h2 className="text-3xl font-black font-headline tracking-tight">
-            Quan ly catalog goi thanh vien
+            Quản lý danh mục gói thành viên
           </h2>
           <p className="max-w-4xl text-sm leading-7 text-neutral-500">
-            Data model membership luu 3 lop: MembershipPlan, UserMembership, va
-            MembershipBenefitUsage. Hien tai booking flow chi dang enforce giam gia ban va
-            maxAdvanceBookingDays. PriorityBooking va free coaching sessions van duoc luu
-            trong plan nhung chua co automation service.
+            Hệ thống hiện lưu thông tin gói, thành viên đang tham gia và quyền lợi đã dùng. Hiện
+            tại giảm giá bàn và thời gian đặt trước đã áp dụng tự động; các quyền lợi còn lại sẽ
+            được bổ sung dần.
           </p>
         </div>
 
@@ -178,7 +178,7 @@ export const MembershipView = () => {
           className="inline-flex items-center gap-2 rounded-full bg-primary px-5 py-3 text-sm font-bold uppercase tracking-[0.14em] text-white transition-colors hover:bg-primary-container"
         >
           <Plus size={18} />
-          Them goi moi
+          Thêm gói mới
         </button>
       </div>
 
@@ -196,24 +196,24 @@ export const MembershipView = () => {
 
       <div className="mb-6 grid gap-4 md:grid-cols-3">
         <div className="rounded-2xl border border-neutral-100 bg-surface-lowest p-6 shadow-sm">
-          <p className="text-sm font-medium text-neutral-500">Tong so goi</p>
+          <p className="text-sm font-medium text-neutral-500">Tổng số gói</p>
           <p className="mt-2 text-3xl font-black font-headline text-on-background">{plans.length}</p>
         </div>
         <div className="rounded-2xl border border-neutral-100 bg-surface-lowest p-6 shadow-sm">
-          <p className="text-sm font-medium text-neutral-500">Goi dang active</p>
+          <p className="text-sm font-medium text-neutral-500">Gói đang hoạt động</p>
           <p className="mt-2 text-3xl font-black font-headline text-tertiary">
             {plans.filter((plan) => plan.isActive).length}
           </p>
         </div>
         <div className="rounded-2xl border border-neutral-100 bg-surface-lowest p-6 shadow-sm">
-          <p className="text-sm font-medium text-neutral-500">Subscriber dang hoat dong</p>
+          <p className="text-sm font-medium text-neutral-500">Thành viên đang sử dụng</p>
           <p className="mt-2 text-3xl font-black font-headline text-primary">{totalSubscribers}</p>
         </div>
       </div>
 
       {plans.length === 0 && !isLoading ? (
         <div className="rounded-2xl border border-neutral-200 bg-surface-lowest p-10 text-center text-sm text-neutral-500">
-          Chua co goi thanh vien nao.
+          Chưa có gói thành viên nào.
         </div>
       ) : (
         <div className="grid gap-6 xl:grid-cols-3">
@@ -226,7 +226,7 @@ export const MembershipView = () => {
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="rounded-full bg-surface-low px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-neutral-600">
-                      {plan.tier}
+                      {getMembershipTierLabel(plan.tier)}
                     </span>
                     <span
                       className={`rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] ${
@@ -235,7 +235,7 @@ export const MembershipView = () => {
                           : 'bg-red-50 text-red-700'
                       }`}
                     >
-                      {plan.isActive ? 'Dang hoat dong' : 'Tam an'}
+                      {plan.isActive ? 'Đang hoạt động' : 'Tạm ẩn'}
                     </span>
                   </div>
                   <h3 className="mt-4 text-2xl font-black font-headline text-on-background">
@@ -245,7 +245,7 @@ export const MembershipView = () => {
 
                 <div className="text-right">
                   <p className="text-xs font-bold uppercase tracking-[0.18em] text-neutral-500">
-                    Gia/thang
+                    Giá/tháng
                   </p>
                   <p className="mt-2 text-2xl font-black text-primary">
                     {formatCurrency(plan.monthlyPrice)}
@@ -255,30 +255,30 @@ export const MembershipView = () => {
 
               <div className="mt-6 grid gap-3 text-sm">
                 <div className="flex items-center justify-between rounded-2xl bg-surface-low px-4 py-3">
-                  <span className="text-neutral-500">Active subscribers</span>
+                  <span className="text-neutral-500">Thành viên đang dùng</span>
                   <strong>{plan.activeSubscribers}</strong>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-surface-low px-4 py-3">
-                  <span className="text-neutral-500">Table discount</span>
+                  <span className="text-neutral-500">Giảm giá bàn</span>
                   <strong>{plan.tableDiscountPercent}%</strong>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-surface-low px-4 py-3">
-                  <span className="text-neutral-500">Dat truoc</span>
+                  <span className="text-neutral-500">Đặt trước</span>
                   <strong>{getAdvanceWindowLabel(plan.maxAdvanceBookingDays)}</strong>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-surface-low px-4 py-3">
-                  <span className="text-neutral-500">Free coaching</span>
-                  <strong>{plan.freeCoachingSessionsPerMonth} buoi/thang</strong>
+                  <span className="text-neutral-500">Buổi HLV miễn phí</span>
+                  <strong>{plan.freeCoachingSessionsPerMonth} buổi/tháng</strong>
                 </div>
                 <div className="flex items-center justify-between rounded-2xl bg-surface-low px-4 py-3">
-                  <span className="text-neutral-500">Priority booking</span>
-                  <strong>{plan.priorityBooking ? 'Bat' : 'Tat'}</strong>
+                  <span className="text-neutral-500">Ưu tiên đặt chỗ</span>
+                  <strong>{plan.priorityBooking ? 'Bật' : 'Tắt'}</strong>
                 </div>
               </div>
 
               <div className="mt-6 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs leading-6 text-amber-800">
-                Luu y: goi hien co luu free coaching sessions va priority booking trong data
-                model, nhung backend chua tu dong tru quota hoac tang uu tien o booking flow.
+                Một số quyền lợi đã hiển thị nhưng chưa tự động trừ ngay. Hệ thống sẽ cập nhật
+                trong các phiên bản tiếp theo.
               </div>
 
               <div className="mt-6 flex gap-3 border-t border-neutral-100 pt-4">
@@ -286,13 +286,13 @@ export const MembershipView = () => {
                   onClick={() => handleOpenModal(plan)}
                   className="flex-1 rounded-xl bg-surface-low py-3 text-sm font-bold transition-colors hover:bg-neutral-200"
                 >
-                  Sua
+                  Sửa
                 </button>
                 <button
                   onClick={() => handleDelete(plan)}
                   className="flex-1 rounded-xl bg-red-50 py-3 text-sm font-bold text-red-600 transition-colors hover:bg-red-100"
                 >
-                  Xoa
+                  Xóa
                 </button>
               </div>
             </article>
@@ -306,10 +306,10 @@ export const MembershipView = () => {
             <div className="mb-6 flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-bold uppercase tracking-[0.18em] text-primary">
-                  {editingPlanId !== null ? 'Cap nhat plan' : 'Tao plan moi'}
+                  {editingPlanId !== null ? 'Cập nhật gói' : 'Tạo gói mới'}
                 </p>
                 <h3 className="mt-2 text-2xl font-black font-headline text-on-background">
-                  {editingPlanId !== null ? 'Sua goi thanh vien' : 'Them goi thanh vien'}
+                  {editingPlanId !== null ? 'Sửa gói thành viên' : 'Thêm gói thành viên'}
                 </h3>
               </div>
               <button
@@ -322,7 +322,7 @@ export const MembershipView = () => {
 
             <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-medium text-neutral-700">Ten goi</label>
+                <label className="mb-1 block text-sm font-medium text-neutral-700">Tên gói</label>
                 <input
                   type="text"
                   value={formData.name}
@@ -333,7 +333,7 @@ export const MembershipView = () => {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700">Tier</label>
+                <label className="mb-1 block text-sm font-medium text-neutral-700">Hạng gói</label>
                 <select
                   value={formData.tier}
                   onChange={(event) =>
@@ -344,15 +344,15 @@ export const MembershipView = () => {
                   }
                   className="w-full rounded-xl border border-neutral-200 px-4 py-3 focus:border-primary focus:outline-none"
                 >
-                  <option value="Free">Free</option>
-                  <option value="Silver">Silver</option>
-                  <option value="Gold">Gold</option>
+                  <option value="Free">Miễn phí</option>
+                  <option value="Silver">Bạc</option>
+                  <option value="Gold">Vàng</option>
                 </select>
               </div>
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-neutral-700">
-                  Gia moi thang
+                  Giá mỗi tháng
                 </label>
                 <input
                   type="number"
@@ -368,7 +368,7 @@ export const MembershipView = () => {
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-neutral-700">
-                  Giam gia ban (%)
+                  Giảm giá bàn (%)
                 </label>
                 <input
                   type="number"
@@ -387,7 +387,7 @@ export const MembershipView = () => {
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-neutral-700">
-                  Dat truoc toi da (ngay)
+                  Đặt trước tối đa (ngày)
                 </label>
                 <input
                   type="number"
@@ -406,7 +406,7 @@ export const MembershipView = () => {
 
               <div>
                 <label className="mb-1 block text-sm font-medium text-neutral-700">
-                  Free coaching/thang
+                  Buổi HLV miễn phí/tháng
                 </label>
                 <input
                   type="number"
@@ -431,7 +431,7 @@ export const MembershipView = () => {
                     setFormData({ ...formData, priorityBooking: event.target.checked })
                   }
                 />
-                Priority booking
+                Ưu tiên đặt chỗ
               </label>
 
               <label className="flex items-center gap-3 rounded-2xl border border-neutral-200 px-4 py-3 text-sm font-medium text-neutral-700">
@@ -440,7 +440,7 @@ export const MembershipView = () => {
                   checked={formData.isActive}
                   onChange={(event) => setFormData({ ...formData, isActive: event.target.checked })}
                 />
-                Plan dang active
+                Gói đang hoạt động
               </label>
 
               <div className="mt-2 flex gap-3 md:col-span-2">
@@ -449,14 +449,14 @@ export const MembershipView = () => {
                   onClick={handleCloseModal}
                   className="flex-1 rounded-xl border border-neutral-200 py-3 text-sm font-bold text-neutral-700 transition-colors hover:bg-neutral-50"
                 >
-                  Huy
+                  Hủy
                 </button>
                 <button
                   type="submit"
                   disabled={isLoading}
                   className="flex-1 rounded-xl bg-primary py-3 text-sm font-bold text-white transition-colors hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  {editingPlanId !== null ? 'Luu thay doi' : 'Tao goi'}
+                  {editingPlanId !== null ? 'Lưu thay đổi' : 'Tạo gói'}
                 </button>
               </div>
             </form>

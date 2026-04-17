@@ -48,7 +48,7 @@ export const useMembershipStore = create<MembershipState>((set) => ({
       const plans = await membershipService.getPlans();
       set({ plans });
     } catch (error) {
-      set({ error: getErrorMessage(error, 'Khong the tai danh sach goi thanh vien.') });
+      set({ error: getErrorMessage(error, 'Không thể tải danh sách gói thành viên.') });
     } finally {
       set({ isLoading: false });
     }
@@ -60,7 +60,7 @@ export const useMembershipStore = create<MembershipState>((set) => ({
       const myMembership = await membershipService.getMyMembership();
       set({ myMembership });
     } catch (error) {
-      set({ error: getErrorMessage(error, 'Khong the tai goi thanh vien hien tai.') });
+      set({ error: getErrorMessage(error, 'Không thể tải gói thành viên hiện tại.') });
     } finally {
       set({ isLoading: false });
     }
@@ -73,7 +73,7 @@ export const useMembershipStore = create<MembershipState>((set) => ({
       set({ myMembership });
       return myMembership;
     } catch (error) {
-      const message = getErrorMessage(error, 'Khong the dang ky goi thanh vien luc nay.');
+      const message = getErrorMessage(error, 'Không thể đăng ký gói thành viên lúc này.');
       set({ error: message });
       throw error;
     } finally {
@@ -90,7 +90,7 @@ export const useMembershipStore = create<MembershipState>((set) => ({
       }));
       return true;
     } catch (error) {
-      const message = getErrorMessage(error, 'Khong the cap nhat trang thai gia han tu dong.');
+      const message = getErrorMessage(error, 'Không thể cập nhật trạng thái gia hạn tự động.');
       set({ error: message });
       throw error;
     } finally {

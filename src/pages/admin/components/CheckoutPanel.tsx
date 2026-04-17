@@ -1,127 +1,308 @@
-import React, { useState, useEffect } from 'react';
-import { X, Receipt, Wallet, Banknote, CreditCard } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { X, Receipt, Wallet, Banknote, CreditCard, RefreshCw } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
+import { AdminTable, CheckoutSummary, LinkableCoachSession, RunningTotal } from '../../../types';
 
-export const CheckoutPanel = ({ isOpen, onClose, table, booking }: any) => {
+interface CheckoutPanelProps {
+  isOpen: boolean;
+  onClose: (success: boolean) => void;
+  table?: AdminTable | null;
+  sessionId?: string | null;
+  bookingId?: string | null;
+}
+
+const getErrorMessage = (error: unknown, fallbackMessage: string) => {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    (typeof (error as any).response?.data?.message === 'string' ||
+      typeof (error as any).response?.data?.Message === 'string')
+  ) {
+    return (
+      (error as any).response?.data?.message ||
+      (error as any).response?.data?.Message ||
+      fallbackMessage
+    );
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallbackMessage;
+};
+
+export const CheckoutPanel = ({
+  isOpen,
+  onClose,
+  table,
+  sessionId,
+  bookingId,
+}: CheckoutPanelProps) => {
   const [submitting, setSubmitting] = useState(false);
-  const [linking, setLinking] = useState(false);
-  const [linkableSessions, setLinkableSessions] = useState<any[]>([]);
+  const [linkingId, setLinkingId] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [successMessage, setSuccessMessage] = useState('');
+  const [linkableSessions, setLinkableSessions] = useState<LinkableCoachSession[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'VnPay'>('Cash');
+  const [runningTotal, setRunningTotal] = useState<RunningTotal | null>(null);
+  const [interimBill, setInterimBill] = useState<CheckoutSummary | null>(null);
 
-  useEffect(() => {
-    if (isOpen && booking?.id) {
-      adminService.getAvailableCoachSessions(booking.id)
-        .then((res: any) => setLinkableSessions(res))
-        .catch((err: any) => console.error("Could not fetch linkable coach sessions:", err));
+  const customerName = useMemo(
+    () => interimBill?.customerName || table?.currentCustomerName || 'Khách vãng lai',
+    [interimBill?.customerName, table?.currentCustomerName],
+  );
+
+  const refreshBilling = async () => {
+    if (!sessionId) {
+      setRunningTotal(null);
+      setInterimBill(null);
+      setLinkableSessions([]);
+      return;
     }
-  }, [isOpen, booking]);
 
-  const handleLinkCoach = async (sessionId: string) => {
-    setLinking(true);
+    setLoading(true);
+    setError('');
+
     try {
-      await adminService.linkCoachSession(booking.id, { coachingSessionId: sessionId });
-      alert('Đã gộp phí HLV thành công! Vui lòng mở lại bảng thanh toán để xem hóa đơn mới.');
-      onClose(true); // Triggers reload and close
-    } catch (e: any) {
-      alert(e.response?.data?.message || 'Có lỗi khi gộp HLV');
+      const [total, bill, sessions] = await Promise.all([
+        adminService.getSessionRunningTotal(sessionId),
+        adminService.getSessionInterimBill(sessionId),
+        bookingId
+          ? adminService.getAvailableCoachSessions(bookingId)
+          : Promise.resolve([] as LinkableCoachSession[]),
+      ]);
+
+      setRunningTotal(total);
+      setInterimBill(bill);
+      setLinkableSessions(sessions);
+    } catch (loadError) {
+      setError(getErrorMessage(loadError, 'Không thể tải thông tin thanh toán cho phiên này.'));
     } finally {
-      setLinking(false);
+      setLoading(false);
     }
   };
 
-  if (!isOpen) return null;
+  useEffect(() => {
+    if (!isOpen) {
+      return;
+    }
+
+    void refreshBilling();
+
+    const interval = window.setInterval(() => {
+      void refreshBilling();
+    }, 15000);
+
+    return () => window.clearInterval(interval);
+  }, [bookingId, isOpen, sessionId]);
+
+  if (!isOpen) {
+    return null;
+  }
+
+  const handleLinkCoach = async (coachSessionId: string) => {
+    if (!bookingId) {
+      setError('Không tìm thấy lượt đặt đang hoạt động để cộng phí HLV.');
+      return;
+    }
+
+    setLinkingId(coachSessionId);
+    setError('');
+    setSuccessMessage('');
+
+    try {
+      await adminService.linkCoachSession(bookingId, { coachingSessionId: coachSessionId });
+      setSuccessMessage('Đã cộng phí HLV vào hóa đơn hiện tại.');
+      await refreshBilling();
+    } catch (linkError) {
+      setError(getErrorMessage(linkError, 'Có lỗi khi thêm phí HLV vào hóa đơn.'));
+    } finally {
+      setLinkingId(null);
+    }
+  };
 
   const handleSubmit = async () => {
-    if (!booking) return;
+    if (!bookingId) {
+      setError('Không tìm thấy lượt đặt đang hoạt động để thanh toán.');
+      return;
+    }
+
     setSubmitting(true);
+    setError('');
+    setSuccessMessage('');
+
     try {
-      await adminService.checkoutBooking(booking.id, { paymentMethod });
-      alert("Thanh toán thành công!");
-      onClose(true); // pass true to indicate success
-    } catch (e: any) {
-      console.error(e);
-      alert(e.response?.data?.message || 'Lỗi khi thanh toán');
+      const response = await adminService.checkoutBooking(bookingId, { paymentMethod });
+      setSuccessMessage(response.message || 'Thanh toán thành công.');
+      onClose(true);
+    } catch (submitError) {
+      setError(getErrorMessage(submitError, 'Lỗi khi thanh toán.'));
     } finally {
       setSubmitting(false);
     }
   };
 
-  const tableCost = booking ? ((booking.actualCost || booking.totalPrice) - (booking.fnBTotal || 0) - (booking.coachingTotal || 0) + (booking.discountAmount || 0)) : 0;
-  const discount = booking?.discountAmount || 0;
-  const deposit = booking?.depositAmount || 0;
-  const totalCost = booking?.actualCost || booking?.totalPrice || 0;
-  const amountDue = Math.max(0, totalCost - deposit);
-  
   return (
-    <div className="fixed inset-y-0 right-0 z-[70] w-[400px] bg-white shadow-2xl flex flex-col border-l border-neutral-200 animate-in slide-in-from-right duration-300">
-      <div className="p-6 border-b flex justify-between items-center bg-neutral-50 text-neutral-900">
+    <div className="animate-in slide-in-from-right fixed inset-y-0 right-0 z-[70] flex w-[420px] flex-col border-l border-neutral-200 bg-white shadow-2xl duration-300">
+      <div className="flex items-center justify-between border-b bg-neutral-50 p-6 text-neutral-900">
         <div>
-          <h2 className="font-bold text-lg">{table?.tableNumber || table?.name || "Thanh toán bàn"}</h2>
-          <p className="text-sm text-neutral-500">Khách: {booking?.userFullName || table?.currentCustomerName || 'Vãng lai'}</p>
+          <h2 className="font-headline text-lg font-bold tracking-tight">
+            {table?.tableNumber || 'Thanh toán bàn'}
+          </h2>
+          <p className="text-sm text-neutral-500">Khách: {customerName}</p>
         </div>
-        <button aria-label="Đóng bảng thanh toán" title="Đóng" onClick={() => onClose(false)} className="p-2 bg-white rounded-full text-neutral-500 hover:text-black border border-neutral-200 shadow-sm">
+        <button
+          aria-label="Đóng bảng thanh toán"
+          title="Đóng"
+          onClick={() => onClose(false)}
+          className="rounded-full border border-neutral-200 bg-white p-2 text-neutral-500 shadow-sm hover:text-black"
+        >
           <X size={20} />
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-6 space-y-6">
-        <h3 className="font-headline font-bold text-lg flex items-center gap-2"><Receipt size={20} className="text-primary"/> Chi tiết hóa đơn</h3>
-        
-        <div className="bg-surface-low rounded-xl border border-neutral-100 p-4 space-y-3 text-sm">
-          <div className="flex justify-between items-center">
-            <span className="text-neutral-600">Tiền bàn</span>
-            <span className="font-medium text-neutral-900">{tableCost.toLocaleString()}đ</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-neutral-600">Dịch vụ F&B</span>
-            <span className="font-medium text-neutral-900">{booking?.fnBTotal?.toLocaleString() || 0}đ</span>
-          </div>
-          <div className="flex justify-between items-center">
-            <span className="text-neutral-600">Phí huấn luyện viên</span>
-            <span className="font-medium text-neutral-900">{booking?.coachingTotal?.toLocaleString() || 0}đ</span>
-          </div>
-          {discount > 0 && (
-            <div className="flex justify-between items-center text-tertiary">
-              <span className="font-medium">Giảm giá thành viên</span>
-              <span className="font-bold">-{discount.toLocaleString()}đ</span>
-            </div>
-          )}
-          {deposit > 0 && (
-            <div className="flex justify-between items-center text-emerald-600">
-              <span className="font-medium">Tiền cọc trước</span>
-              <span className="font-bold">-{deposit.toLocaleString()}đ</span>
-            </div>
-          )}
-          
-          <div className="pt-3 border-t border-dashed border-neutral-300 flex flex-col gap-1">
-            <div className="flex justify-between items-center">
-               <span className="font-bold text-neutral-900 text-base">Tổng chi phí</span>
-               <span className="font-bold text-neutral-500 text-lg">{totalCost.toLocaleString()}đ</span>
-            </div>
-            <div className="flex justify-between items-center mt-1">
-               <span className="font-black text-primary text-xl">KHÁCH CẦN TRẢ</span>
-               <span className="font-black text-primary text-2xl">{amountDue.toLocaleString()}đ</span>
-            </div>
-          </div>
+      <div className="flex-1 space-y-6 overflow-y-auto p-6">
+        <div className="flex items-center justify-between">
+          <h3 className="flex items-center gap-2 font-headline text-lg font-bold">
+            <Receipt size={20} className="text-primary" />
+            Chi tiết hóa đơn
+          </h3>
+          <button
+            type="button"
+            onClick={() => void refreshBilling()}
+            disabled={loading}
+            className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 px-3 py-2 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            <RefreshCw size={14} className={loading ? 'animate-spin' : ''} />
+            Làm mới
+          </button>
         </div>
 
-        {linkableSessions?.length > 0 && (
+        {error && (
+          <div className="rounded-xl border border-error/20 bg-error/5 px-4 py-3 text-sm text-error">
+            {error}
+          </div>
+        )}
+
+        {successMessage && (
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+            {successMessage}
+          </div>
+        )}
+
+        {runningTotal?.note && (
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            {runningTotal.note}
+          </div>
+        )}
+
+        {loading && !interimBill ? (
+          <div className="rounded-xl border border-neutral-100 bg-surface-low p-4 text-sm text-neutral-500">
+            Đang tải tổng tiền phiên...
+          </div>
+        ) : interimBill ? (
+          <div className="space-y-3 rounded-xl border border-neutral-100 bg-surface-low p-4 text-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-neutral-600">Tiền bàn</span>
+              <span className="font-medium text-neutral-900">
+                {interimBill.tableCost.toLocaleString()}đ
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-neutral-600">Dịch vụ F&amp;B</span>
+              <span className="font-medium text-neutral-900">
+                {interimBill.fnBCost.toLocaleString()}đ
+              </span>
+            </div>
+            <div className="flex items-center justify-between">
+              <span className="text-neutral-600">Phí huấn luyện viên</span>
+              <span className="font-medium text-neutral-900">
+                {interimBill.coachingCost.toLocaleString()}đ
+              </span>
+            </div>
+            {interimBill.discountAmount > 0 && (
+              <div className="flex items-center justify-between text-tertiary">
+                <span className="font-medium">Giảm giá thành viên</span>
+                <span className="font-bold">
+                  -{interimBill.discountAmount.toLocaleString()}đ
+                </span>
+              </div>
+            )}
+            {interimBill.depositAmount > 0 && (
+              <div className="flex items-center justify-between text-emerald-600">
+                <span className="font-medium">Tiền cọc đã thu</span>
+                <span className="font-bold">
+                  -{interimBill.depositAmount.toLocaleString()}đ
+                </span>
+              </div>
+            )}
+
+            <div className="border-t border-dashed border-neutral-300 pt-3">
+              <div className="flex items-center justify-between">
+                <span className="text-base font-bold text-neutral-900">Tổng chi phí</span>
+                <span className="text-lg font-bold text-neutral-500">
+                  {interimBill.totalCost.toLocaleString()}đ
+                </span>
+              </div>
+              <div className="mt-1 flex items-center justify-between">
+                <span className="text-xl font-black text-primary">KHÁCH CẦN TRẢ</span>
+                <span className="text-2xl font-black text-primary">
+                  {interimBill.amountDue.toLocaleString()}đ
+                </span>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl border border-neutral-100 bg-surface-low p-4 text-sm text-neutral-500">
+            Không tìm thấy phiên đang hoạt động để tính hóa đơn.
+          </div>
+        )}
+
+        {runningTotal && (
+          <div className="rounded-xl border border-neutral-100 bg-surface-lowest p-4 text-xs text-neutral-600">
+            <div className="flex items-center justify-between">
+              <span>Tạm tính hiện tại</span>
+              <span className="font-semibold text-neutral-900">
+                {runningTotal.estimatedBalanceDue.toLocaleString()}đ
+              </span>
+            </div>
+            <div className="mt-2 flex items-center justify-between">
+              <span>Tổng trước cọc</span>
+              <span>{runningTotal.subtotal.toLocaleString()}đ</span>
+            </div>
+          </div>
+        )}
+
+        {linkableSessions.length > 0 && (
           <div className="space-y-4">
-            <h3 className="font-headline font-bold text-lg flex items-center gap-2 text-primary">Phiên Dạy Kèm (Chưa tính)</h3>
+            <h3 className="font-headline text-lg font-bold text-primary">
+              Buổi dạy kèm chưa cộng phí
+            </h3>
             <div className="flex flex-col gap-3">
-              {linkableSessions.map((session, i) => (
-                <div key={i} className="p-3 border border-tertiary/30 bg-teal-50 rounded-xl flex items-center justify-between">
+              {linkableSessions.map((session) => (
+                <div
+                  key={session.id}
+                  className="flex items-center justify-between rounded-xl border border-tertiary/30 bg-teal-50 p-3"
+                >
                   <div>
-                    <p className="font-bold text-sm">HLV: {session.coachName}</p>
-                    <p className="text-xs text-neutral-500">{session.sessionDate.slice(0, 10)} | {session.startTime} - {session.endTime}</p>
-                    <p className="text-sm font-bold text-tertiary">{session.cost?.toLocaleString()}đ</p>
+                    <p className="text-sm font-bold">HLV: {session.coachName}</p>
+                    <p className="text-xs text-neutral-500">
+                      {session.sessionDate.slice(0, 10)} | {session.startTime} -{' '}
+                      {session.endTime}
+                    </p>
+                    <p className="text-sm font-bold text-tertiary">
+                      {session.cost?.toLocaleString()}đ
+                    </p>
                   </div>
-                  <button 
-                    disabled={linking}
-                    onClick={() => handleLinkCoach(session.id)}
-                    className="px-3 py-1 bg-tertiary text-white rounded font-bold text-[10px] uppercase tracking-wider hover:bg-teal-700 transition"
+                  <button
+                    disabled={linkingId === session.id}
+                    onClick={() => void handleLinkCoach(session.id)}
+                    className="rounded bg-tertiary px-3 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-white transition hover:bg-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
                   >
-                    {linking ? 'Đang gộp...' : '+ Gộp Bill'}
+                    {linkingId === session.id ? 'Đang thêm...' : 'Thêm vào hóa đơn'}
                   </button>
                 </div>
               ))}
@@ -130,35 +311,44 @@ export const CheckoutPanel = ({ isOpen, onClose, table, booking }: any) => {
         )}
 
         <div className="space-y-4">
-          <h3 className="font-headline font-bold text-lg flex items-center gap-2"><Wallet size={20} className="text-primary"/> Phương thức TT</h3>
+          <h3 className="flex items-center gap-2 font-headline text-lg font-bold">
+            <Wallet size={20} className="text-primary" />
+            Phương thức thanh toán
+          </h3>
           <div className="grid grid-cols-2 gap-3">
-            <div 
+            <button
+              type="button"
               onClick={() => setPaymentMethod('Cash')}
-              className={`p-3 rounded-xl border-2 cursor-pointer flex flex-col items-center gap-2 transition-all ${
-                paymentMethod === 'Cash' ? 'border-primary bg-primary/5 text-primary' : 'border-neutral-200 hover:border-primary/50 text-neutral-500'
+              className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all ${
+                paymentMethod === 'Cash'
+                  ? 'border-primary bg-primary/5 text-primary'
+                  : 'border-neutral-200 text-neutral-500 hover:border-primary/50'
               }`}
             >
               <Banknote size={24} />
-              <span className="font-medium text-sm">Tiền mặt</span>
-            </div>
-            <div 
+              <span className="text-sm font-medium">Tiền mặt</span>
+            </button>
+            <button
+              type="button"
               onClick={() => setPaymentMethod('VnPay')}
-              className={`p-3 rounded-xl border-2 cursor-pointer flex flex-col items-center gap-2 transition-all ${
-                paymentMethod === 'VnPay' ? 'border-primary bg-primary/5 text-primary' : 'border-neutral-200 hover:border-primary/50 text-neutral-500'
+              className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all ${
+                paymentMethod === 'VnPay'
+                  ? 'border-primary bg-primary/5 text-primary'
+                  : 'border-neutral-200 text-neutral-500 hover:border-primary/50'
               }`}
             >
               <CreditCard size={24} />
-              <span className="font-medium text-sm">Chuyển khoản (VnPay)</span>
-            </div>
+              <span className="text-sm font-medium">Chuyển khoản</span>
+            </button>
           </div>
         </div>
       </div>
 
-      <div className="p-6 bg-neutral-50 border-t border-neutral-200">
-        <button 
-          onClick={handleSubmit}
-          disabled={!booking || submitting}
-          className="w-full py-4 rounded-xl bg-primary text-white font-bold text-lg shadow-lg shadow-primary/30 disabled:opacity-50 disabled:shadow-none hover:bg-primary-600 transition-all"
+      <div className="border-t border-neutral-200 bg-neutral-50 p-6">
+        <button
+          onClick={() => void handleSubmit()}
+          disabled={!bookingId || submitting || loading}
+          className="w-full rounded-xl bg-primary py-4 text-lg font-bold text-white shadow-lg shadow-primary/30 transition-all hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
         >
           {submitting ? 'Đang xử lý...' : 'Xác nhận thanh toán'}
         </button>

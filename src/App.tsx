@@ -63,11 +63,13 @@ export default function App() {
       <Route path="/login" element={<RootRedirect onNavigate={handleNavigate} />} />
       <Route path="/register" element={<Register onNavigate={handleNavigate} />} />
 
-      {/* Customer Routes (Will be protected later when Auth is ready) */}
+      {/* Public browse routes */}
+      <Route path="/floor-plan" element={<FloorPlan onNavigate={handleNavigate} />} />
+      <Route path="/coaches" element={<Coaches onNavigate={handleNavigate} />} />
+      <Route path="/membership" element={<Membership onNavigate={handleNavigate} />} />
+
+      {/* Authenticated customer routes */}
       <Route element={<ProtectedRoute requiredRoles={['Customer']} />}>
-        <Route path="/floor-plan" element={<FloorPlan onNavigate={handleNavigate} />} />
-        <Route path="/coaches" element={<Coaches onNavigate={handleNavigate} />} />
-        <Route path="/membership" element={<Membership onNavigate={handleNavigate} />} />
         <Route path="/bookings" element={<BookingHistory onNavigate={handleNavigate} />} />
         <Route path="/settings" element={<Settings onNavigate={handleNavigate} />} />
       </Route>

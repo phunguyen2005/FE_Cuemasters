@@ -58,7 +58,7 @@ export const useBookingStore = create<BookingState>((set) => ({
     } catch {
       set({
         categoryAvailability: null,
-        availabilityError: 'Khong the tai khung gio trong luc nay. Vui long thu lai sau it phut.',
+        availabilityError: 'Không thể tải khung giờ trống lúc này. Vui lòng thử lại sau ít phút.',
       });
     } finally {
       set({ isLoading: false });

@@ -2,7 +2,12 @@ import api from './api';
 import { ApiMessageResponse, StaffAvailability, UpsertStaffAvailabilityRequest } from '../types';
 
 export const staffService = {
-  getSchedule: () => api.get('/staff/schedule').then(res => res.data),
+  getSchedule: (date?: string) =>
+    api
+      .get('/staff/schedule', {
+        params: date ? { dateStr: date } : undefined,
+      })
+      .then(res => res.data),
   getSessions: () => api.get('/staff/sessions').then(res => res.data),
   completeSession: (id: string, notes?: string) => api.put(`/staff/sessions/${id}/complete`, { notes }).then(res => res.data),
   getAvailability: () => api.get<StaffAvailability[]>('/staff/availability').then(res => res.data),

@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { TrendingDown, TrendingUp } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
-import { TrendingUp, TrendingDown } from 'lucide-react';
+import { AdminAnalytics, AdminDashboardStats } from '../../../types';
 
 type RevenueStructureItem = {
   label: string;
@@ -9,46 +10,144 @@ type RevenueStructureItem = {
   color: string;
 };
 
+const startOfDayIso = (value: Date) => {
+  const date = new Date(value);
+  date.setHours(0, 0, 0, 0);
+  return date.toISOString();
+};
+
+const endOfDayIso = (value: Date) => {
+  const date = new Date(value);
+  date.setHours(23, 59, 59, 999);
+  return date.toISOString();
+};
+
+const getRangeForFilter = (
+  dateFilter: 'today' | 'week' | 'month' | 'custom',
+  customRange: { from: string; to: string },
+) => {
+  const now = new Date();
+
+  if (dateFilter === 'today') {
+    return {
+      from: startOfDayIso(now),
+      to: endOfDayIso(now),
+      period: 'day',
+    };
+  }
+
+  if (dateFilter === 'week') {
+    const monday = new Date(now);
+    const day = monday.getDay();
+    const diff = day === 0 ? -6 : 1 - day;
+    monday.setDate(monday.getDate() + diff);
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+
+    return {
+      from: startOfDayIso(monday),
+      to: endOfDayIso(sunday),
+      period: 'week',
+    };
+  }
+
+  if (dateFilter === 'month') {
+    const start = new Date(now.getFullYear(), now.getMonth(), 1);
+    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+
+    return {
+      from: startOfDayIso(start),
+      to: endOfDayIso(end),
+      period: 'month',
+    };
+  }
+
+  if (!customRange.from || !customRange.to) {
+    return null;
+  }
+
+  const fromDate = new Date(customRange.from);
+  const toDate = new Date(customRange.to);
+  const diffInDays = Math.max(
+    0,
+    Math.floor((toDate.getTime() - fromDate.getTime()) / 86400000),
+  );
+  const period = diffInDays <= 1 ? 'day' : diffInDays <= 7 ? 'week' : 'month';
+
+  return {
+    from: startOfDayIso(fromDate),
+    to: endOfDayIso(toDate),
+    period,
+  };
+};
+
+const getErrorMessage = (error: unknown, fallbackMessage: string) => {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    (typeof (error as any).response?.data?.message === 'string' ||
+      typeof (error as any).response?.data?.Message === 'string')
+  ) {
+    return (
+      (error as any).response?.data?.message ||
+      (error as any).response?.data?.Message ||
+      fallbackMessage
+    );
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallbackMessage;
+};
+
 export const RevenueView = () => {
-  const [stats, setStats] = useState<any>(null);
-  const [analytics, setAnalytics] = useState<any>(null);
-  
-  // Add date range filter
-  const [dateFilter, setDateFilter] = useState<'today'|'week'|'month'|'custom'>('month');
+  const [stats, setStats] = useState<AdminDashboardStats | null>(null);
+  const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [dateFilter, setDateFilter] = useState<'today' | 'week' | 'month' | 'custom'>(
+    'month',
+  );
+  const [basis, setBasis] = useState<'service' | 'payment'>('service');
   const [customRange, setCustomRange] = useState({ from: '', to: '' });
 
-  const loadData = () => {
-    let from, to;
-    const now = new Date();
-    if (dateFilter === 'today') {
-      from = new Date(now.setHours(0,0,0,0)).toISOString();
-      to = new Date(now.setHours(23,59,59,999)).toISOString();
-    } else if (dateFilter === 'week') {
-      const first = now.getDate() - now.getDay() + 1;
-      const last = first + 6;
-      from = new Date(now.setDate(first)).toISOString();
-      to = new Date(now.setDate(last)).toISOString();
-    } else if (dateFilter === 'month') {
-      from = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      to = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString();
-    } else if (dateFilter === 'custom' && customRange.from && customRange.to) {
-      from = new Date(customRange.from).toISOString();
-      to = new Date(customRange.to).toISOString();
+  useEffect(() => {
+    const range = getRangeForFilter(dateFilter, customRange);
+    if (!range) {
+      return;
     }
 
-    const params = (from && to) ? { from, to } : undefined;
-    adminService.getStats(params).then(data => setStats(data)).catch(console.error);
-    adminService.getAnalytics(params).then(data => setAnalytics(data)).catch(console.error);
-  };
+    setIsLoading(true);
 
-  useEffect(() => {
-    loadData();
-  }, [dateFilter, customRange]);
+    Promise.all([
+      adminService.getStats({ from: range.from, to: range.to }),
+      adminService.getAnalytics({
+        from: range.from,
+        to: range.to,
+        period: range.period,
+        basis,
+      }),
+    ])
+      .then(([statsData, analyticsData]) => {
+        setStats(statsData);
+        setAnalytics(analyticsData);
+        setError('');
+      })
+      .catch((loadError) => {
+        setError(getErrorMessage(loadError, 'Không thể tải báo cáo doanh thu lúc này.'));
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, [basis, customRange, dateFilter]);
 
   const heatmapMatrix = useMemo(() => {
     if (!analytics?.occupancyHeatmap) return [];
     const matrix = Array.from({ length: 7 }, () => Array(24).fill(0));
-    analytics.occupancyHeatmap.forEach((cell: any) => {
+    analytics.occupancyHeatmap.forEach((cell) => {
       matrix[cell.dayOfWeek][cell.hour] = cell.occupancyRate;
     });
     return matrix;
@@ -56,19 +155,37 @@ export const RevenueView = () => {
 
   const occupancyTrend = useMemo(() => {
     if (!analytics?.occupancyHeatmap) return [0, 0, 0, 0];
-    let morning = 0, afternoon = 0, evening = 0, night = 0;
-    let mr = 0, ar = 0, er = 0, nr = 0;
-    analytics.occupancyHeatmap.forEach((cell: any) => {
-      if (cell.hour >= 8 && cell.hour < 12) { morning += cell.occupancyRate; mr++; }
-      else if (cell.hour >= 12 && cell.hour < 18) { afternoon += cell.occupancyRate; ar++; }
-      else if (cell.hour >= 18 && cell.hour < 23) { evening += cell.occupancyRate; er++; }
-      else { night += cell.occupancyRate; nr++; }
+
+    let morning = 0;
+    let afternoon = 0;
+    let evening = 0;
+    let night = 0;
+    let morningCount = 0;
+    let afternoonCount = 0;
+    let eveningCount = 0;
+    let nightCount = 0;
+
+    analytics.occupancyHeatmap.forEach((cell) => {
+      if (cell.hour >= 8 && cell.hour < 12) {
+        morning += cell.occupancyRate;
+        morningCount += 1;
+      } else if (cell.hour >= 12 && cell.hour < 18) {
+        afternoon += cell.occupancyRate;
+        afternoonCount += 1;
+      } else if (cell.hour >= 18 && cell.hour < 23) {
+        evening += cell.occupancyRate;
+        eveningCount += 1;
+      } else {
+        night += cell.occupancyRate;
+        nightCount += 1;
+      }
     });
+
     return [
-      mr ? Math.round(morning / mr) : 0,
-      ar ? Math.round(afternoon / ar) : 0,
-      er ? Math.round(evening / er) : 0,
-      nr ? Math.round(night / nr) : 0
+      morningCount ? Math.round(morning / morningCount) : 0,
+      afternoonCount ? Math.round(afternoon / afternoonCount) : 0,
+      eveningCount ? Math.round(evening / eveningCount) : 0,
+      nightCount ? Math.round(night / nightCount) : 0,
     ];
   }, [analytics]);
 
@@ -79,7 +196,7 @@ export const RevenueView = () => {
       { label: 'Huấn luyện viên', amount: 0, val: 0, color: 'bg-neutral-800' },
     ];
 
-    if (!Array.isArray(analytics?.revenueBySource) || analytics.revenueBySource.length === 0) {
+    if (!analytics?.revenueBySource?.length) {
       return fallback;
     }
 
@@ -89,73 +206,149 @@ export const RevenueView = () => {
       'Huấn luyện viên': 'bg-neutral-800',
     };
 
-    const dynamic: RevenueStructureItem[] = analytics.revenueBySource.map((item: any, index: number): RevenueStructureItem => {
-      const defaultColor = fallback[index % fallback.length].color;
-
-      return {
-        label: item.label,
-        amount: Number(item.amount || 0),
-        val: Number(item.percentage || 0),
-        color: colorByLabel[item.label] || defaultColor,
-      };
-    });
-
-    return dynamic;
+    return analytics.revenueBySource.map((item, index) => ({
+      label: item.label,
+      amount: Number(item.amount || 0),
+      val: Number(item.percentage || 0),
+      color: colorByLabel[item.label] || fallback[index % fallback.length].color,
+    }));
   }, [analytics]);
 
-  if (!stats || !analytics) return <div className="p-8 text-white">Đang tải...</div>;
+  if (isLoading && !stats && !analytics) {
+    return <div className="p-8 text-white">Đang tải...</div>;
+  }
 
-  const maxRevenue = Math.max(...(analytics.revenueByPeriod?.map((p: any) => p.revenue) || [1]));
-  const totalRevenuePeriod = analytics.revenueByPeriod?.reduce((sum: number, p: any) => sum + p.revenue, 0) || 0;
-  const targetPercent = Math.min(100, Math.round((totalRevenuePeriod / 1000000000) * 100));
+  if (!stats || !analytics) {
+    return (
+      <div className="space-y-4 p-8">
+        {error && (
+          <div className="rounded-xl border border-error/20 bg-error/5 px-4 py-3 text-sm text-error">
+            {error}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  const maxRevenue = Math.max(
+    ...(analytics.revenueByPeriod?.map((point) => point.revenue) || [1]),
+  );
+  const totalRevenuePeriod =
+    analytics.revenueByPeriod?.reduce((sum, point) => sum + point.revenue, 0) || 0;
+  const targetPercent = Math.min(
+    100,
+    Math.round((totalRevenuePeriod / 1000000000) * 100),
+  );
 
   return (
-    <div className="p-8 space-y-6 animate-in fade-in duration-500">
-      
-      {/* Date Filter Bar */}
-      <div className="flex justify-between items-center bg-surface-lowest p-4 rounded-xl border border-neutral-100 shadow-sm">
-        <h2 className="text-xl font-headline font-bold">Báo cáo doanh thu</h2>
-        <div className="flex gap-2 items-center">
-          <div className="flex bg-surface-low rounded-lg p-1 border border-neutral-200">
+    <div className="animate-in fade-in space-y-6 p-8 duration-500">
+      {error && (
+        <div className="rounded-xl border border-error/20 bg-error/5 px-4 py-3 text-sm text-error">
+          {error}
+        </div>
+      )}
+
+      <div className="flex items-center justify-between rounded-xl border border-neutral-100 bg-surface-lowest p-4 shadow-sm">
+        <h2 className="font-headline text-xl font-bold">Báo cáo doanh thu</h2>
+        <div className="flex items-center gap-2">
+          <div className="flex rounded-lg border border-neutral-200 bg-surface-low p-1">
             {[
               { id: 'today', label: 'Hôm nay' },
               { id: 'week', label: 'Tuần này' },
               { id: 'month', label: 'Tháng này' },
               { id: 'custom', label: 'Tùy chỉnh' },
-            ].map(f => (
+            ].map((filter) => (
               <button
-                key={f.id}
-                onClick={() => setDateFilter(f.id as any)}
-                className={`px-4 py-1.5 rounded-md text-sm font-medium transition-colors ${dateFilter === f.id ? 'bg-primary text-white shadow' : 'text-neutral-600 hover:text-neutral-900 hover:bg-neutral-100'}`}
+                key={filter.id}
+                onClick={() => setDateFilter(filter.id as typeof dateFilter)}
+                className={`rounded-md px-4 py-1.5 text-sm font-medium transition-colors ${
+                  dateFilter === filter.id
+                    ? 'bg-primary text-white shadow'
+                    : 'text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900'
+                }`}
               >
-                {f.label}
+                {filter.label}
               </button>
             ))}
           </div>
+          <select
+            value={basis}
+            onChange={(event) => setBasis(event.target.value as 'service' | 'payment')}
+            className="rounded-lg border border-neutral-200 bg-surface-lowest px-3 py-2 text-sm"
+          >
+            <option value="service">Theo ngày sử dụng</option>
+            <option value="payment">Theo ngày thanh toán</option>
+          </select>
           {dateFilter === 'custom' && (
-            <div className="flex gap-2 items-center ml-2 border-l border-neutral-200 pl-4">
-              <input type="date" value={customRange.from} onChange={e => setCustomRange({...customRange, from: e.target.value})} className="border border-neutral-200 rounded px-2 py-1 text-sm bg-surface-lowest" />
+            <div className="ml-2 flex items-center gap-2 border-l border-neutral-200 pl-4">
+              <input
+                type="date"
+                value={customRange.from}
+                onChange={(event) =>
+                  setCustomRange({ ...customRange, from: event.target.value })
+                }
+                className="rounded border border-neutral-200 bg-surface-lowest px-2 py-1 text-sm"
+              />
               <span>-</span>
-              <input type="date" value={customRange.to} onChange={e => setCustomRange({...customRange, to: e.target.value})} className="border border-neutral-200 rounded px-2 py-1 text-sm bg-surface-lowest" />
+              <input
+                type="date"
+                value={customRange.to}
+                onChange={(event) =>
+                  setCustomRange({ ...customRange, to: event.target.value })
+                }
+                className="rounded border border-neutral-200 bg-surface-lowest px-2 py-1 text-sm"
+              />
             </div>
           )}
         </div>
       </div>
 
-      {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-6">
         {[
-          { label: 'Tổng doanh thu', value: `${stats.revenue.toLocaleString()}đ`, trend: '+12.5%', isUp: true },
-          { label: 'Bàn trống', value: `${stats.availableTables}`, trend: '+5.2%', isUp: true },
-          { label: 'Phiên đang hoạt động', value: `${stats.activeSessions}`, trend: '-2.1%', isUp: false },
-          { label: 'Tổng lượt đặt', value: `${stats.totalBookings}`, trend: '+8.4%', isUp: true },
-        ].map((kpi, i) => (
-          <div key={i} className="bg-surface-lowest p-6 rounded-2xl border border-neutral-100 shadow-sm">
-            <p className="text-sm text-neutral-500 font-medium mb-2">{kpi.label}</p>
+          {
+            label: 'Tổng doanh thu',
+            value: `${stats.revenue.toLocaleString()}đ`,
+            trend: '+12.5%',
+            isUp: true,
+          },
+          {
+            label: 'Bàn trống',
+            value: `${stats.availableTables}`,
+            trend: '+5.2%',
+            isUp: true,
+          },
+          {
+            label: 'Phiên đang hoạt động',
+            value: `${stats.activeSessions}`,
+            trend: '-2.1%',
+            isUp: false,
+          },
+          {
+            label: 'Tổng lượt đặt',
+            value: `${stats.totalBookings}`,
+            trend: '+8.4%',
+            isUp: true,
+          },
+        ].map((kpi) => (
+          <div
+            key={kpi.label}
+            className="rounded-2xl border border-neutral-100 bg-surface-lowest p-6 shadow-sm"
+          >
+            <p className="mb-2 text-sm font-medium text-neutral-500">{kpi.label}</p>
             <div className="flex items-end justify-between">
-              <h3 className="text-3xl font-headline font-bold text-neutral-900">{kpi.value}</h3>
-              <div className={`flex items-center text-sm font-medium ${kpi.isUp ? 'text-tertiary' : 'text-primary'}`}>
-                {kpi.isUp ? <TrendingUp size={16} className="mr-1" /> : <TrendingDown size={16} className="mr-1" />}
+              <h3 className="font-headline text-3xl font-bold text-neutral-900">
+                {kpi.value}
+              </h3>
+              <div
+                className={`flex items-center text-sm font-medium ${
+                  kpi.isUp ? 'text-tertiary' : 'text-primary'
+                }`}
+              >
+                {kpi.isUp ? (
+                  <TrendingUp size={16} className="mr-1" />
+                ) : (
+                  <TrendingDown size={16} className="mr-1" />
+                )}
                 {kpi.trend}
               </div>
             </div>
@@ -164,76 +357,99 @@ export const RevenueView = () => {
       </div>
 
       <div className="grid grid-cols-3 gap-6">
-        {/* Revenue Structure */}
-        <div className="bg-surface-lowest p-6 rounded-2xl border border-neutral-100 shadow-sm">
-          <h3 className="font-headline font-bold text-lg mb-6">Cơ cấu Doanh thu</h3>
+        <div className="rounded-2xl border border-neutral-100 bg-surface-lowest p-6 shadow-sm">
+          <h3 className="mb-6 font-headline text-lg font-bold">Cơ cấu doanh thu</h3>
           <div className="space-y-5">
-            {revenueStructure.map((item, i) => (
-              <div key={i}>
-                <div className="flex justify-between text-sm mb-2">
+            {revenueStructure.map((item) => (
+              <div key={item.label}>
+                <div className="mb-2 flex justify-between text-sm">
                   <span className="font-medium text-neutral-700">{item.label}</span>
                   <span className="font-bold">{item.val.toFixed(2)}%</span>
                 </div>
-                <p className="text-xs text-neutral-500 mb-2">{item.amount.toLocaleString()}đ</p>
-                <div className="h-2 bg-surface-low rounded-full overflow-hidden">
-                  <div className={`h-full ${item.color}`} style={{ width: `${Math.max(0, Math.min(item.val, 100))}%` }}></div>
+                <p className="mb-2 text-xs text-neutral-500">
+                  {item.amount.toLocaleString()}đ
+                </p>
+                <div className="h-2 overflow-hidden rounded-full bg-surface-low">
+                  <div
+                    className={`h-full ${item.color}`}
+                    style={{ width: `${Math.max(0, Math.min(item.val, 100))}%` }}
+                  ></div>
                 </div>
               </div>
             ))}
           </div>
         </div>
 
-        {/* Monthly Chart */}
-        <div className="col-span-2 bg-surface-lowest p-6 rounded-2xl border border-neutral-100 shadow-sm">
-          <div className="flex justify-between items-center mb-6">
-            <h3 className="font-headline font-bold text-lg">Biểu đồ doanh thu</h3>
+        <div className="col-span-2 rounded-2xl border border-neutral-100 bg-surface-lowest p-6 shadow-sm">
+          <div className="mb-6 flex items-center justify-between">
+            <h3 className="font-headline text-lg font-bold">Biểu đồ doanh thu</h3>
+            <span className="text-xs uppercase tracking-widest text-neutral-400">
+              {analytics.period} / {analytics.basis}
+            </span>
           </div>
-          <div className="h-48 flex items-end gap-2 justify-between mt-4">      
-            {analytics.revenueByPeriod?.map((p: any, i: number) => {
-              const heightPercent = maxRevenue > 0 ? (p.revenue / maxRevenue) * 100 : 0;
+          <div className="mt-4 flex h-48 items-end justify-between gap-2">
+            {analytics.revenueByPeriod?.map((point) => {
+              const heightPercent = maxRevenue > 0 ? (point.revenue / maxRevenue) * 100 : 0;
               return (
-                <div key={i} className="flex flex-col items-center flex-1 group h-full">
-                  <div className="w-full bg-surface-low rounded-t-md relative h-full flex items-end">
+                <div key={point.label} className="group flex h-full flex-1 flex-col items-center">
+                  <div className="relative flex h-full w-full items-end rounded-t-md bg-surface-low">
                     <div
-                      className={`w-full bg-primary rounded-t-md transition-all duration-300 group-hover:opacity-80`}
+                      className="w-full rounded-t-md bg-primary transition-all duration-300 group-hover:opacity-80"
                       style={{ height: `${heightPercent}%` }}
                     ></div>
-                    <div className="absolute -top-8 left-1/2 -translate-x-1/2 opacity-0 group-hover:opacity-100 transition-opacity bg-neutral-900 text-white text-xs py-1 px-2 rounded whitespace-nowrap z-10 pointer-events-none">
-                      {p.revenue.toLocaleString()}đ
+                    <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-neutral-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
+                      {point.revenue.toLocaleString()}đ
                     </div>
                   </div>
                 </div>
               );
             })}
           </div>
-          <div className="flex justify-between text-xs text-neutral-400 mt-3 px-1">
-            {analytics.revenueByPeriod?.map((p: any, i: number) => (
-              <span key={i} className="flex-1 text-center truncate px-1">{p.label}</span>
+          <div className="mt-3 flex justify-between px-1 text-xs text-neutral-400">
+            {analytics.revenueByPeriod?.map((point) => (
+              <span key={point.label} className="flex-1 truncate px-1 text-center">
+                {point.label}
+              </span>
             ))}
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-4 gap-6">
-        {/* Heatmap */}
-        <div className="col-span-2 bg-surface-lowest p-6 rounded-2xl border border-neutral-100 shadow-sm">
-          <h3 className="font-headline font-bold text-lg mb-4">Bản đồ nhiệt giờ cao điểm</h3>
+        <div className="col-span-2 rounded-2xl border border-neutral-100 bg-surface-lowest p-6 shadow-sm">
+          <h3 className="mb-4 font-headline text-lg font-bold">Bản đồ nhiệt giờ cao điểm</h3>
           <div className="grid grid-cols-8 gap-1">
-            <div className="col-span-1 grid grid-rows-7 gap-1 text-xs text-neutral-400 font-medium text-right pr-2 pt-6">
-              <div>CN</div><div>T2</div><div>T3</div><div>T4</div><div>T5</div><div>T6</div><div>T7</div>
+            <div className="col-span-1 grid grid-rows-7 gap-1 pt-6 pr-2 text-right text-xs font-medium text-neutral-400">
+              <div>CN</div>
+              <div>T2</div>
+              <div>T3</div>
+              <div>T4</div>
+              <div>T5</div>
+              <div>T6</div>
+              <div>T7</div>
             </div>
             <div className="col-span-7">
-              <div className="grid grid-cols-6 gap-1 text-xs text-neutral-400 font-medium mb-2">
-                <div>00:00</div><div>04:00</div><div>08:00</div><div>12:00</div><div>16:00</div><div>20:00</div>
+              <div className="mb-2 grid grid-cols-6 gap-1 text-xs font-medium text-neutral-400">
+                <div>00:00</div>
+                <div>04:00</div>
+                <div>08:00</div>
+                <div>12:00</div>
+                <div>16:00</div>
+                <div>20:00</div>
               </div>
               <div className="grid grid-rows-7 gap-1">
-                {heatmapMatrix.map((rowArr, rowIdx) => (
-                  <div key={rowIdx} className="grid grid-cols-24 gap-1 h-4">       
-                    {rowArr.map((rate, colIdx) => {
+                {heatmapMatrix.map((row, rowIndex) => (
+                  <div key={rowIndex} className="grid h-4 grid-cols-24 gap-1">
+                    {row.map((rate, columnIndex) => {
                       let opacity = Number(rate) / 100;
                       if (opacity < 0.1) opacity = 0.1;
                       return (
-                        <div key={colIdx} className={`bg-primary rounded-sm`} style={{ opacity: opacity }} title={`${rate}%`}></div>
+                        <div
+                          key={columnIndex}
+                          className="rounded-sm bg-primary"
+                          style={{ opacity }}
+                          title={`${rate}%`}
+                        ></div>
                       );
                     })}
                   </div>
@@ -243,40 +459,47 @@ export const RevenueView = () => {
           </div>
         </div>
 
-        {/* Occupancy Trend */}
-        <div className="bg-surface-lowest p-6 rounded-2xl border border-neutral-100 shadow-sm">
-          <h3 className="font-headline font-bold text-lg mb-6">Xu hướng lấp đầy</h3>
+        <div className="rounded-2xl border border-neutral-100 bg-surface-lowest p-6 shadow-sm">
+          <h3 className="mb-6 font-headline text-lg font-bold">Xu hướng lấp đầy</h3>
           <div className="space-y-4">
-            {['Sáng (08:00 - 12:00)', 'Chiều (12:00 - 18:00)', 'Tối (18:00 - 23:00)', 'Đêm (23:00 - 08:00)'].map((time, i) => {
-              const val = occupancyTrend[i];
+            {[
+              'Sáng (08:00 - 12:00)',
+              'Chiều (12:00 - 18:00)',
+              'Tối (18:00 - 23:00)',
+              'Đêm (23:00 - 08:00)',
+            ].map((label, index) => {
+              const value = occupancyTrend[index];
               return (
-                <div key={i}>
-                  <div className="flex justify-between text-xs mb-1">
-                    <span className="text-neutral-500">{time}</span>
-                    <span className="font-bold">{val}%</span>
+                <div key={label}>
+                  <div className="mb-1 flex justify-between text-xs">
+                    <span className="text-neutral-500">{label}</span>
+                    <span className="font-bold">{value}%</span>
                   </div>
-                  <div className="h-1.5 bg-surface-low rounded-full overflow-hidden">
-                    <div className="h-full bg-neutral-800" style={{ width: `${val}%` }}></div>
+                  <div className="h-1.5 overflow-hidden rounded-full bg-surface-low">
+                    <div className="h-full bg-neutral-800" style={{ width: `${value}%` }}></div>
                   </div>
                 </div>
-              )
+              );
             })}
           </div>
         </div>
 
-        {/* Target Card */}
-        <div className="bg-primary text-white p-6 rounded-2xl shadow-md relative overflow-hidden flex flex-col justify-between">
-          <div className="absolute -right-10 -top-10 w-32 h-32 bg-white/10 rounded-full blur-2xl"></div>
+        <div className="relative flex flex-col justify-between overflow-hidden rounded-2xl bg-primary p-6 text-white shadow-md">
+          <div className="absolute -right-10 -top-10 h-32 w-32 rounded-full bg-white/10 blur-2xl"></div>
           <div>
-            <h3 className="font-headline font-bold text-lg mb-2 relative z-10">Mục tiêu doanh thu</h3>
-            <p className="text-primary-container-foreground/80 text-sm mb-6 relative z-10">Đạt {targetPercent}% mục tiêu kỷ kỳ này</p>
+            <h3 className="relative z-10 mb-2 font-headline text-lg font-bold">
+              Mục tiêu doanh thu
+            </h3>
+            <p className="relative z-10 mb-6 text-sm text-primary-container-foreground/80">
+              Đạt {targetPercent}% mục tiêu kỳ này
+            </p>
           </div>
           <div>
-            <div className="text-3xl font-bold mb-2 relative z-10">
-              {(totalRevenuePeriod / 1000000).toFixed(0)}M 
-              <span className="text-lg font-normal opacity-80 pl-2">/ 1B</span>
+            <div className="relative z-10 mb-2 text-3xl font-bold">
+              {(totalRevenuePeriod / 1000000).toFixed(0)}M
+              <span className="pl-2 text-lg font-normal opacity-80">/ 1B</span>
             </div>
-            <div className="h-2 bg-black/20 rounded-full overflow-hidden relative z-10">
+            <div className="relative z-10 h-2 overflow-hidden rounded-full bg-black/20">
               <div className="h-full bg-white" style={{ width: `${targetPercent}%` }}></div>
             </div>
           </div>

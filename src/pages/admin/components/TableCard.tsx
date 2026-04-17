@@ -1,45 +1,47 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Clock, Users } from 'lucide-react';
 import { AdminTable } from '../../../types';
+import { getTableStatusLabel, getTableTypeLabel } from '../../../utils/labels';
 
 const formatElapsed = (minutes: number): string => {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  return h > 0 ? `${h}h ${m}m` : `${m}m`;
+  const hours = Math.floor(minutes / 60);
+  const remainingMinutes = minutes % 60;
+  return hours > 0 ? `${hours} giờ ${remainingMinutes} phút` : `${remainingMinutes} phút`;
 };
 
-export const TableCard = ({ 
-  table, 
-  booking,
+interface TableCardProps {
+  table: AdminTable;
+  onClick?: (table: AdminTable) => void;
+  onCheckout?: (sessionId: string, table: AdminTable) => void;
+  onWalkin?: (table: AdminTable) => void;
+  hasPending?: boolean;
+  onCheckinOnline?: (table: AdminTable) => void;
+}
+
+export const TableCard = ({
+  table,
   onClick,
-  onCheckin,
   onCheckout,
   onWalkin,
   hasPending = false,
-  onCheckinOnline
-}: { 
-  table: AdminTable, 
-  booking?: any,
-  onClick?: (table: AdminTable) => void,
-  onCheckin?: (bookingId: string) => void,
-  onCheckout?: (booking: any, table: AdminTable) => void,
-  onWalkin?: (table: AdminTable) => void,
-  hasPending?: boolean,
-  onCheckinOnline?: (table: AdminTable) => void
-}) => {
+  onCheckinOnline,
+}: TableCardProps) => {
   const status = table.displayStatus;
-  const reservableBookingId = booking?.id ?? table.nextBookingId;
-  const customerName = status === 'Reserved' ? table.nextCustomerName : table.currentCustomerName;
-  let statusColor = 'border-neutral-200';
-  let badgeColor = 'bg-neutral-100 text-neutral-500';
-
+  const customerName =
+    status === 'Reserved' ? table.nextCustomerName : table.currentCustomerName;
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
-    if (status !== 'InUse' || !table.currentSessionStartedAt) return;
+    if (status !== 'InUse' || !table.currentSessionStartedAt) {
+      return;
+    }
+
     const interval = setInterval(() => setNow(Date.now()), 60000);
     return () => clearInterval(interval);
   }, [status, table.currentSessionStartedAt]);
+
+  let statusColor = 'border-neutral-200';
+  let badgeColor = 'bg-neutral-100 text-neutral-500';
 
   if (status === 'InUse') {
     statusColor = 'border-primary';
@@ -55,64 +57,97 @@ export const TableCard = ({
     badgeColor = 'bg-neutral-100 text-neutral-600';
   }
 
-  const statusLabel = status === 'InUse' ? 'Đang chơi' : status === 'Available' ? 'Trống' : status === 'Reserved' ? 'Đã đặt' : status === 'Maintenance' ? 'Bảo trì' : status;
-
   return (
-    <div onClick={() => onClick?.(table)} className={`p-4 rounded-xl border-2 flex flex-col ${statusColor} bg-surface-lowest relative group cursor-pointer hover:shadow-md transition-all`}>
-      <div className="flex justify-between items-start mb-3">
+    <div
+      onClick={() => {
+        if (status === 'InUse' && table.activeSessionId) {
+          onClick?.(table);
+        }
+      }}
+      className={`relative flex cursor-pointer flex-col rounded-2xl border-2 bg-surface-lowest p-4 transition-all hover:shadow-md ${statusColor}`}
+    >
+      <div className="mb-3 flex items-start justify-between">
         <div>
           <h4 className="font-bold text-neutral-900">{table.tableNumber}</h4>
-          <p className="text-xs text-neutral-500">{table.type}</p>
+          <p className="text-xs text-neutral-500">{getTableTypeLabel(table.type)}</p>
         </div>
-        <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase ${badgeColor}`}>
-          {statusLabel}
+        <span className={`rounded-full px-2.5 py-1 text-[10px] font-bold uppercase ${badgeColor}`}>
+          {getTableStatusLabel(status)}
         </span>
       </div>
 
-      <div className="space-y-2 mt-auto mb-4">
+      <div className="mb-4 mt-auto space-y-2">
         <div className="flex justify-between text-sm">
-          <span className="text-neutral-500 flex items-center gap-1"><Clock size={14} /> {status === 'Reserved' ? 'Giờ đặt' : 'Thời gian'}</span>
+          <span className="flex items-center gap-1 text-neutral-500">
+            <Clock size={14} />
+            {status === 'Reserved' ? 'Giờ đến' : 'Bắt đầu'}
+          </span>
           <span className="font-medium text-neutral-900">
-             {status === 'Reserved' 
-               ? (table.nextBookingStartTime ? new Date(table.nextBookingStartTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--")
-               : (table.currentSessionStartedAt ? new Date(table.currentSessionStartedAt).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : "--:--")}
+            {status === 'Reserved'
+              ? table.nextBookingStartTime
+                ? new Date(table.nextBookingStartTime).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '--:--'
+              : table.currentSessionStartedAt
+                ? new Date(table.currentSessionStartedAt).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                : '--:--'}
           </span>
         </div>
+
         {status === 'InUse' && table.currentSessionStartedAt && (
           <div className="flex justify-between text-sm">
-            <span className="text-neutral-500 flex items-center gap-1">Đã chơi</span>
+            <span className="text-neutral-500">Đã chơi</span>
             <span className="font-bold text-primary">
-              {formatElapsed(Math.max(0, Math.floor((now - new Date(table.currentSessionStartedAt).getTime()) / 60000)))}
+              {formatElapsed(
+                Math.max(
+                  0,
+                  Math.floor((now - new Date(table.currentSessionStartedAt).getTime()) / 60000),
+                ),
+              )}
             </span>
           </div>
         )}
+
         {customerName && (
           <div className="flex justify-between text-sm">
-            <span className="text-neutral-500 flex items-center gap-1"><Users size={14} /> Khách</span>
-            <span className="font-medium text-neutral-900 truncate max-w-[100px]">{customerName}</span>
+            <span className="flex items-center gap-1 text-neutral-500">
+              <Users size={14} />
+              Khách
+            </span>
+            <span className="max-w-[120px] truncate font-medium text-neutral-900">
+              {customerName}
+            </span>
           </div>
         )}
-        {((table.currentSessionAmount ?? 0) > 0) && (
-          <div className="flex justify-between text-sm pt-2 border-t border-neutral-100 mt-2">
+
+        {status === 'Reserved' && !table.nextCustomerName && (
+          <div className="rounded-lg bg-amber-50 px-3 py-2 text-xs leading-6 text-amber-700">
+            Lượt đặt theo loại bàn. Nhân viên sẽ gán bàn khi khách làm thủ tục nhận bàn.
+          </div>
+        )}
+
+        {(table.currentSessionAmount ?? 0) > 0 && (
+          <div className="mt-2 flex justify-between border-t border-neutral-100 pt-2 text-sm">
             <span className="text-neutral-500">Tạm tính</span>
-            <span className="font-bold text-primary">{`${table.currentSessionAmount?.toLocaleString()}đ`}</span>
+            <span className="font-bold text-primary">
+              {`${table.currentSessionAmount?.toLocaleString()}đ`}
+            </span>
           </div>
         )}
       </div>
 
-      {status === 'Reserved' && reservableBookingId && onCheckin && (
-        <button 
-          onClick={(e) => { e.stopPropagation(); onCheckin(reservableBookingId); }}
-          className="mt-2 w-full py-2 bg-tertiary text-white rounded-lg font-bold text-sm hover:bg-tertiary/90 transition-colors"
-        >
-          Check-in Khách
-        </button>
-      )}
-
-      {status === 'InUse' && booking && (
-        <button 
-          onClick={(e) => { e.stopPropagation(); onCheckout?.(booking, table); }}
-          className="mt-2 w-full py-2 bg-primary text-white rounded-lg font-bold text-sm hover:bg-primary-600 transition-colors"
+      {status === 'InUse' && table.activeSessionId && (
+        <button
+          onClick={(event) => {
+            event.stopPropagation();
+            onCheckout?.(table.activeSessionId!, table);
+          }}
+          className="mt-2 w-full rounded-xl bg-primary py-2.5 text-sm font-bold text-white transition-colors hover:bg-primary-600"
         >
           Thanh toán
         </button>
@@ -121,16 +156,22 @@ export const TableCard = ({
       {status === 'Available' && (
         <div className="mt-2 flex gap-2">
           {hasPending && (
-            <button 
-              onClick={(e) => { e.stopPropagation(); onCheckinOnline?.(table); }}
-              className="flex-1 py-2 bg-amber-600 text-white rounded-lg font-bold text-sm hover:bg-amber-700 transition-colors whitespace-nowrap"
+            <button
+              onClick={(event) => {
+                event.stopPropagation();
+                onCheckinOnline?.(table);
+              }}
+              className="flex-1 whitespace-nowrap rounded-xl bg-amber-600 py-2 text-sm font-bold text-white transition-colors hover:bg-amber-700"
             >
               Chờ xếp
             </button>
           )}
-          <button 
-            onClick={(e) => { e.stopPropagation(); onWalkin?.(table); }}
-            className="flex-1 py-2 bg-neutral-800 text-white rounded-lg font-bold text-sm hover:bg-neutral-700 transition-colors whitespace-nowrap"
+          <button
+            onClick={(event) => {
+              event.stopPropagation();
+              onWalkin?.(table);
+            }}
+            className="flex-1 whitespace-nowrap rounded-xl bg-neutral-800 py-2 text-sm font-bold text-white transition-colors hover:bg-neutral-700"
           >
             Vãng lai
           </button>

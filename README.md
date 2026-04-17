@@ -1,6 +1,6 @@
 # 🎱 CueMasters Frontend
 
-Hệ thống quản lý đặt bàn bida hiện đại, giao diện trực quan và thời gian thực.
+Hệ thống giúp quản lý đặt bàn, thanh toán và theo dõi trạng thái bàn theo thời gian thực.
 
 ## 🚀 Công nghệ sử dụng
 - **Core:** React 18 + TypeScript + Vite

@@ -5,10 +5,24 @@ import { useMembershipStore } from '../stores/membershipStore';
 import { useAuthStore } from '../stores/authStore';
 import { formatCurrency } from '../utils/formatCurrency';
 import { Check, Crown, CalendarDays, Clock, Info } from 'lucide-react';
+import { getMembershipTierLabel } from '../utils/labels';
 
 const getAdvanceWindowLabel = (days: number) => {
   if (days <= 0) return 'Chỉ đặt trong ngày';
-  return `Trước ${days} ngày`;
+  return `Đặt trước ${days} ngày`;
+};
+
+const getMembershipStatusLabel = (status?: string | null) => {
+  switch (status) {
+    case 'Active':
+      return 'Đang hiệu lực';
+    case 'Expired':
+      return 'Đã hết hạn';
+    case 'Cancelled':
+      return 'Đã hủy';
+    default:
+      return status || 'Không xác định';
+  }
 };
 
 const formatDate = (value: string) =>
@@ -55,9 +69,10 @@ export default function Membership({ onNavigate }: ScreenProps) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const activeMembership = isAuthenticated ? myMembership : null;
   const [autoRenewOnSubscribe, setAutoRenewOnSubscribe] = useState(true);
-  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(
-    null,
-  );
+  const [feedback, setFeedback] = useState<{
+    type: 'success' | 'error';
+    message: string;
+  } | null>(null);
 
   useEffect(() => {
     void fetchPlans();
@@ -127,7 +142,7 @@ export default function Membership({ onNavigate }: ScreenProps) {
       await cancelAutoRenew();
       setFeedback({
         type: 'success',
-        message: 'Đã hủy gia hạn tự động.',
+        message: 'Đã tắt gia hạn tự động cho gói hiện tại.',
       });
     } catch (error) {
       setFeedback({
@@ -139,183 +154,233 @@ export default function Membership({ onNavigate }: ScreenProps) {
 
   return (
     <CustomerLayout onNavigate={onNavigate} activeScreen="membershipTiers">
-      <div className="px-6 py-12 md:py-20 min-h-screen bg-[#0A0A0A] text-white">
+      <div className="min-h-screen bg-[#0A0A0A] px-6 py-12 text-white md:py-20">
         <div className="mx-auto max-w-6xl space-y-12">
-          
-          {/* Header */}
           <div className="space-y-4 text-center">
-            <h1 className="text-4xl md:text-5xl font-black tracking-tight text-white">
-              Gói Thành Viên CueMasters
+            <p className="text-xs font-bold uppercase tracking-[0.24em] text-primary">
+              Câu lạc bộ thành viên
+            </p>
+            <h1 className="font-headline text-4xl font-black tracking-tight text-white md:text-5xl">
+              Gói thành viên CueMasters
             </h1>
-            <p className="mx-auto max-w-2xl text-stone-400 text-sm md:text-base leading-relaxed">
-              Nâng tầm trải nghiệm billiard của bạn với các đặc quyền độc quyền. Nhận ưu đãi giờ chơi, ưu tiên đặt bàn và các quyền lợi đặc biệt khác.
+            <p className="mx-auto max-w-2xl text-sm leading-7 text-stone-400 md:text-base">
+              Nâng cấp trải nghiệm billiards với quyền lợi đặt bàn sớm hơn, ưu đãi giờ chơi và
+              những đặc quyền dành riêng cho khách quay lại thường xuyên.
             </p>
           </div>
 
           {feedback && (
-            <div className={`p-4 rounded-xl flex items-center gap-3 text-sm font-medium ${
-              feedback.type === 'success' 
-                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' 
-                : 'bg-red-500/10 text-red-400 border border-red-500/20'
-            }`}>
-              <Info className="w-5 h-5 shrink-0" />
+            <div
+              className={`flex items-center gap-3 rounded-2xl border p-4 text-sm font-medium ${
+                feedback.type === 'success'
+                  ? 'border-emerald-500/20 bg-emerald-500/10 text-emerald-400'
+                  : 'border-red-500/20 bg-red-500/10 text-red-400'
+              }`}
+            >
+              <Info className="h-5 w-5 shrink-0" />
               {feedback.message}
             </div>
           )}
 
-          {/* Current Membership */}
           {activeMembership && currentPlan && (
-            <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-stone-900 to-stone-950 border border-stone-800 p-8 md:p-10 shadow-2xl">
-              <div className="absolute -right-8 -top-8 p-8 opacity-5 pointer-events-none">
-                <Crown className="w-64 h-64" />
+            <div className="relative overflow-hidden rounded-[32px] border border-stone-800 bg-gradient-to-br from-stone-900 to-stone-950 p-8 shadow-2xl md:p-10">
+              <div className="pointer-events-none absolute -right-8 -top-8 p-8 opacity-5">
+                <Crown className="h-64 w-64" />
               </div>
-              
-              <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
+
+              <div className="relative z-10 flex flex-col justify-between gap-8 md:flex-row md:items-center">
                 <div className="space-y-5">
-                  <div className="flex items-center gap-3">
-                    <span className="px-4 py-1.5 rounded-full bg-primary/20 text-primary text-xs font-black uppercase tracking-widest">
-                      {currentPlan.tier}
+                  <div className="flex flex-wrap items-center gap-3">
+                    <span className="rounded-full bg-primary/20 px-4 py-1.5 text-xs font-black uppercase tracking-[0.22em] text-primary">
+                      {getMembershipTierLabel(currentPlan.tier)}
                     </span>
-                    <span className={`px-4 py-1.5 rounded-full text-xs font-black uppercase tracking-widest ${
-                      activeMembership.status === 'Active' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-stone-800 text-stone-400'
-                    }`}>
-                      {activeMembership.status}
+                    <span
+                      className={`rounded-full px-4 py-1.5 text-xs font-black uppercase tracking-[0.22em] ${
+                        activeMembership.status === 'Active'
+                          ? 'bg-emerald-500/10 text-emerald-400'
+                          : 'bg-stone-800 text-stone-400'
+                      }`}
+                    >
+                      {getMembershipStatusLabel(activeMembership.status)}
                     </span>
                   </div>
-                  
+
                   <div>
-                    <p className="text-stone-400 text-sm font-medium tracking-wide uppercase mb-2">Gói đang sử dụng</p>
-                    <h2 className="text-4xl md:text-5xl font-black text-white tracking-tight">{activeMembership.planName}</h2>
+                    <p className="mb-2 text-sm font-medium uppercase tracking-[0.18em] text-stone-400">
+                      Gói đang sử dụng
+                    </p>
+                    <h2 className="font-headline text-4xl font-black tracking-tight text-white md:text-5xl">
+                      {activeMembership.planName}
+                    </h2>
                   </div>
-                  
-                  <div className="flex flex-col sm:flex-row sm:items-center gap-4 sm:gap-8 text-sm font-medium text-stone-300">
+
+                  <div className="flex flex-col gap-4 text-sm font-medium text-stone-300 sm:flex-row sm:items-center sm:gap-8">
                     <div className="flex items-center gap-2.5">
-                      <CalendarDays className="w-4 h-4 text-primary" />
-                      Hiệu lực: {formatDate(activeMembership.startDate)} — {formatDate(activeMembership.endDate)}
+                      <CalendarDays className="h-4 w-4 text-primary" />
+                      Hiệu lực: {formatDate(activeMembership.startDate)} đến{' '}
+                      {formatDate(activeMembership.endDate)}
                     </div>
                     <div className="flex items-center gap-2.5">
-                      <Clock className="w-4 h-4 text-primary" />
+                      <Clock className="h-4 w-4 text-primary" />
                       Gia hạn: {activeMembership.autoRenew ? 'Tự động' : 'Thủ công'}
                     </div>
                   </div>
                 </div>
 
-                <div className="flex flex-col gap-4 min-w-[200px]">
+                <div className="flex min-w-[220px] flex-col gap-4">
                   {activeMembership.autoRenew && (
                     <button
                       onClick={handleCancelAutoRenew}
                       disabled={isLoading}
-                      className="w-full py-3.5 px-6 rounded-2xl border border-stone-700/50 bg-stone-800/50 hover:bg-stone-800 hover:border-stone-600 transition-all text-white font-semibold text-sm disabled:opacity-50"
+                      className="w-full rounded-2xl border border-stone-700/50 bg-stone-800/50 px-6 py-3.5 text-sm font-semibold text-white transition-all hover:border-stone-600 hover:bg-stone-800 disabled:opacity-50"
                     >
-                      Hủy gia hạn tự động
+                      Tắt gia hạn tự động
                     </button>
                   )}
                 </div>
               </div>
 
-              <div className="relative z-10 grid grid-cols-2 md:grid-cols-4 gap-6 mt-10 pt-10 border-t border-stone-800/50">
+              <div className="relative z-10 mt-10 grid grid-cols-2 gap-6 border-t border-stone-800/50 pt-10 md:grid-cols-4">
                 <div className="flex flex-col gap-2">
-                  <span className="text-stone-400 text-[11px] uppercase tracking-widest font-bold">Giảm giá bàn</span>
-                  <span className="text-2xl md:text-3xl font-black text-white">{currentPlan.tableDiscountPercent}%</span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-stone-400">
+                    Giảm giá bàn
+                  </span>
+                  <span className="text-2xl font-black text-white md:text-3xl">
+                    {currentPlan.tableDiscountPercent}%
+                  </span>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <span className="text-stone-400 text-[11px] uppercase tracking-widest font-bold">Đặt bàn online</span>
-                  <span className="text-2xl md:text-3xl font-black text-white">{getAdvanceWindowLabel(currentPlan.maxAdvanceBookingDays)}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-stone-400">
+                    Đặt bàn online
+                  </span>
+                  <span className="text-2xl font-black text-white md:text-3xl">
+                    {getAdvanceWindowLabel(currentPlan.maxAdvanceBookingDays)}
+                  </span>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <span className="text-stone-400 text-[11px] uppercase tracking-widest font-bold">Buổi HLV / tháng</span>
-                  <span className="text-2xl md:text-3xl font-black text-white">{currentPlan.freeCoachingSessionsPerMonth}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-stone-400">
+                    Buổi HLV mỗi tháng
+                  </span>
+                  <span className="text-2xl font-black text-white md:text-3xl">
+                    {currentPlan.freeCoachingSessionsPerMonth}
+                  </span>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <span className="text-stone-400 text-[11px] uppercase tracking-widest font-bold">Ưu tiên xếp bàn</span>
-                  <span className="text-2xl md:text-3xl font-black text-white">{currentPlan.priorityBooking ? 'Có' : 'Không'}</span>
+                  <span className="text-[11px] font-bold uppercase tracking-[0.18em] text-stone-400">
+                    Ưu tiên xếp bàn
+                  </span>
+                  <span className="text-2xl font-black text-white md:text-3xl">
+                    {currentPlan.priorityBooking ? 'Có' : 'Không'}
+                  </span>
                 </div>
               </div>
             </div>
           )}
 
-          {/* Subscriptions toggle */}
           {!activeMembership && (
             <div className="flex justify-center">
-              <label className="group flex items-center gap-4 bg-stone-900/40 border border-stone-800/60 px-6 py-4 rounded-2xl cursor-pointer hover:bg-stone-900/80 transition-colors">
+              <label className="group flex cursor-pointer items-center gap-4 rounded-2xl border border-stone-800/60 bg-stone-900/40 px-6 py-4 transition-colors hover:bg-stone-900/80">
                 <input
                   type="checkbox"
                   checked={autoRenewOnSubscribe}
-                  onChange={(e) => setAutoRenewOnSubscribe(e.target.checked)}
-                  className="w-5 h-5 rounded border-stone-700 bg-stone-950 text-emerald-500 focus:ring-emerald-500/50 focus:ring-offset-stone-950 transition-colors"
+                  onChange={(event) => setAutoRenewOnSubscribe(event.target.checked)}
+                  className="h-5 w-5 rounded border-stone-700 bg-stone-950 text-emerald-500 transition-colors focus:ring-emerald-500/50 focus:ring-offset-stone-950"
                 />
-                <span className="text-stone-300 font-medium select-none group-hover:text-white transition-colors">Đăng ký chu kỳ tự động gia hạn hàng tháng</span>
+                <span className="select-none font-medium text-stone-300 transition-colors group-hover:text-white">
+                  Tự động gia hạn gói theo chu kỳ tháng
+                </span>
               </label>
             </div>
           )}
 
-          {/* Plans Grid */}
           {plans.length === 0 && !isLoading ? (
-            <div className="text-center text-stone-500 py-12 font-medium">
-              Hiện chưa có gói thành viên nào được mở bán.
+            <div className="py-12 text-center font-medium text-stone-500">
+              Hiện chưa có gói thành viên nào đang mở bán.
             </div>
           ) : (
-            <div className="grid md:grid-cols-3 gap-6 lg:gap-8">
+            <div className="grid gap-6 md:grid-cols-3 lg:gap-8">
               {plans.map((plan) => {
                 const isCurrentPlan = activeMembership?.planId === plan.id;
-                const isMostPopular = plan.tier.toLowerCase() === 'gold' || plan.tier.toLowerCase() === 'vip';
-                
+                const isMostPopular =
+                  plan.tier.toLowerCase() === 'gold' || plan.tier.toLowerCase() === 'vip';
+
                 return (
                   <div
                     key={plan.id}
                     className={`relative flex flex-col rounded-[2rem] p-8 transition-all duration-300 ${
                       isCurrentPlan
-                        ? 'bg-primary/5 border-2 border-primary/40 shadow-[0_0_40px_rgba(var(--primary-rgb),0.15)] scale-[1.02]'
-                        : 'bg-stone-900/30 border border-stone-800 hover:bg-stone-900/60 hover:border-stone-700'
+                        ? 'scale-[1.02] border-2 border-primary/40 bg-primary/5 shadow-[0_0_40px_rgba(var(--primary-rgb),0.15)]'
+                        : 'border border-stone-800 bg-stone-900/30 hover:border-stone-700 hover:bg-stone-900/60'
                     }`}
                   >
                     {!plan.isActive && (
-                      <div className="absolute -top-3 -right-3">
-                        <span className="bg-red-500 text-white text-[10px] font-black uppercase px-4 py-1.5 rounded-full shadow-lg tracking-wider">
-                          Tạm ngừng
+                      <div className="absolute -right-3 -top-3">
+                        <span className="rounded-full bg-red-500 px-4 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-white shadow-lg">
+                          Tạm ngưng
                         </span>
                       </div>
                     )}
-                    
+
                     <div className="mb-8">
-                      <div className="flex items-center justify-between mb-6">
-                        <span className={`px-3 py-1.5 rounded-full text-[10px] font-black uppercase tracking-widest ${
-                          isCurrentPlan ? 'bg-primary/20 text-primary' : 'bg-stone-800 text-stone-300'
-                        }`}>
-                          {plan.tier}
+                      <div className="mb-6 flex items-center justify-between">
+                        <span
+                          className={`rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.18em] ${
+                            isCurrentPlan
+                              ? 'bg-primary/20 text-primary'
+                              : 'bg-stone-800 text-stone-300'
+                          }`}
+                        >
+                          {getMembershipTierLabel(plan.tier)}
                         </span>
                         {isMostPopular && !isCurrentPlan && (
-                          <span className="text-amber-500 text-[10px] font-black uppercase tracking-widest flex items-center gap-1.5">
-                            <Crown className="w-3.5 h-3.5" /> Phổ biến
+                          <span className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-[0.18em] text-amber-500">
+                            <Crown className="h-3.5 w-3.5" />
+                            Được chọn nhiều
                           </span>
                         )}
                       </div>
-                      <h3 className="text-2xl font-black text-white mb-2">{plan.name}</h3>
+                      <h3 className="mb-2 text-2xl font-black text-white">{plan.name}</h3>
                       <div className="flex items-baseline gap-1.5">
-                        <span className="text-4xl font-black text-white">{formatCurrency(plan.monthlyPrice)}</span>
-                        <span className="text-stone-500 text-sm font-bold uppercase tracking-wider">/tháng</span>
+                        <span className="text-4xl font-black text-white">
+                          {formatCurrency(plan.monthlyPrice)}
+                        </span>
+                        <span className="text-sm font-bold uppercase tracking-[0.16em] text-stone-500">
+                          /tháng
+                        </span>
                       </div>
                     </div>
 
-                    <div className="flex-1 space-y-4 mb-8">
+                    <div className="mb-8 flex-1 space-y-4">
                       <div className="flex items-start gap-3">
-                        <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                        <span className="text-stone-300 text-sm leading-relaxed">Giảm ngay <strong className="text-white font-black">{plan.tableDiscountPercent}%</strong> phí giờ chơi bàn</span>
+                        <Check className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                        <span className="text-sm leading-7 text-stone-300">
+                          Giảm ngay <strong className="font-black text-white">{plan.tableDiscountPercent}%</strong>{' '}
+                          cho phí giờ chơi bàn
+                        </span>
                       </div>
                       <div className="flex items-start gap-3">
-                        <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                        <span className="text-stone-300 text-sm leading-relaxed">Quyền đặt bàn <strong className="text-white font-black">{getAdvanceWindowLabel(plan.maxAdvanceBookingDays).toLowerCase()}</strong></span>
+                        <Check className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                        <span className="text-sm leading-7 text-stone-300">
+                          Quyền đặt bàn <strong className="font-black text-white">{getAdvanceWindowLabel(plan.maxAdvanceBookingDays).toLowerCase()}</strong>
+                        </span>
                       </div>
                       {plan.freeCoachingSessionsPerMonth > 0 && (
                         <div className="flex items-start gap-3">
-                          <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                          <span className="text-stone-300 text-sm leading-relaxed"><strong className="text-white font-black">{plan.freeCoachingSessionsPerMonth} buổi</strong> huấn luyện miễn phí / tháng</span>
+                          <Check className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                          <span className="text-sm leading-7 text-stone-300">
+                            <strong className="font-black text-white">
+                              {plan.freeCoachingSessionsPerMonth} buổi
+                            </strong>{' '}
+                            huấn luyện miễn phí mỗi tháng
+                          </span>
                         </div>
                       )}
                       {plan.priorityBooking && (
                         <div className="flex items-start gap-3">
-                          <Check className="w-5 h-5 text-primary shrink-0 mt-0.5" />
-                          <span className="text-stone-300 text-sm leading-relaxed">Quyền <strong className="text-white font-black">ưu tiên xếp bàn</strong> khi khách đông</span>
+                          <Check className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
+                          <span className="text-sm leading-7 text-stone-300">
+                            Có quyền <strong className="font-black text-white">ưu tiên xếp bàn</strong> vào giờ cao điểm
+                          </span>
                         </div>
                       )}
                     </div>
@@ -324,22 +389,22 @@ export default function Membership({ onNavigate }: ScreenProps) {
                       <button
                         onClick={() => handleSubscribe(plan.id)}
                         disabled={isLoading || !!activeMembership || !plan.isActive}
-                        className={`w-full py-4 rounded-xl font-bold text-sm tracking-wide transition-all ${
+                        className={`w-full rounded-xl py-4 text-sm font-bold uppercase tracking-[0.16em] transition-all ${
                           isCurrentPlan
-                            ? 'bg-primary text-white shadow-lg shadow-primary/20 cursor-default'
+                            ? 'cursor-default bg-primary text-white shadow-lg shadow-primary/20'
                             : activeMembership
-                            ? 'bg-stone-800 text-stone-500 cursor-not-allowed hidden'
-                            : !plan.isActive
-                            ? 'bg-stone-800 text-stone-500 cursor-not-allowed'
-                            : 'bg-white text-black hover:bg-stone-200'
+                              ? 'hidden cursor-not-allowed bg-stone-800 text-stone-500'
+                              : !plan.isActive
+                                ? 'cursor-not-allowed bg-stone-800 text-stone-500'
+                                : 'bg-white text-black hover:bg-stone-200'
                         }`}
                       >
-                        {isCurrentPlan ? 'Đang Sử Dụng' : 'Đăng Ký Gói Này'}
+                        {isCurrentPlan ? 'Đang sử dụng' : 'Đăng ký gói này'}
                       </button>
-                      
+
                       {activeMembership && !isCurrentPlan && (
-                        <div className="w-full text-center text-xs text-stone-500 font-medium py-3">
-                          Không thể thay đổi khi đang có gói hiệu lực
+                        <div className="w-full py-3 text-center text-xs font-medium text-stone-500">
+                          Bạn chưa thể đổi gói khi gói hiện tại vẫn còn hiệu lực.
                         </div>
                       )}
                     </div>
@@ -353,4 +418,3 @@ export default function Membership({ onNavigate }: ScreenProps) {
     </CustomerLayout>
   );
 }
-

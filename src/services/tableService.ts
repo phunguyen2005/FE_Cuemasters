@@ -1,5 +1,5 @@
 import api from './api';
-import { BilliardTable, TableAvailabilityResponse, TableAvailabilitySlot } from '../types';
+import { BilliardTable, FloorPlanSnapshot, TableAvailabilityResponse, TableAvailabilitySlot } from '../types';
 
 export const tableService = {
   getTables: async (): Promise<BilliardTable[]> => {
@@ -18,6 +18,15 @@ export const tableService = {
     } catch (error) {
       console.error("Failed to fetch table availability", error);
       return [];
+    }
+  },
+  getFloorPlanSnapshot: async (date: string): Promise<FloorPlanSnapshot | null> => {
+    try {
+      const response = await api.get<FloorPlanSnapshot>('/floorplan/snapshot', { params: { date } });
+      return response.data;
+    } catch (error) {
+      console.error('Failed to fetch floor plan snapshot', error);
+      return null;
     }
   }
 };

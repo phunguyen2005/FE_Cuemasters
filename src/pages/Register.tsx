@@ -32,7 +32,7 @@ export default function Register({ onNavigate }: ScreenProps) {
         email: response.email,
         fullName: response.fullName,
         role: response.role
-      }, response.token);
+      }, response.token, response.refreshToken ?? null);
       navigate(getDefaultRouteForRole(response.role));
     } catch (err: any) {
       setError(err.response?.data?.message || 'Đăng ký thất bại. Xin thử lại sau.');

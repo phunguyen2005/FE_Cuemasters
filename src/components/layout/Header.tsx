@@ -1,6 +1,7 @@
 import React from 'react';
 import { Screen, ScreenProps } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
+import { authService } from '../../services/authService';
 
 interface HeaderProps extends ScreenProps {
   activeScreen: Screen;
@@ -16,6 +17,16 @@ const navItems: { screen: Screen; label: string }[] = [
 
 export default function Header({ onNavigate, activeScreen }: HeaderProps) {
   const logout = useAuthStore(s => s.logout);
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+    } catch {
+      // ignore network errors; still clear client state
+    }
+    logout();
+  };
+
   return (
     <header className="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-xl shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
       <nav className="flex justify-between items-center max-w-[1440px] mx-auto px-8 py-5">
@@ -49,7 +60,7 @@ export default function Header({ onNavigate, activeScreen }: HeaderProps) {
 
         {/* Account */}
         <div className="flex items-center gap-4">
-          <button title="Đăng xuất" onClick={() => logout()} className="transition-all duration-300 hover:text-red-500 mr-2"><span className="material-symbols-outlined text-[28px]">logout</span></button>
+          <button title="Đăng xuất" onClick={handleLogout} className="transition-all duration-300 hover:text-red-500 mr-2"><span className="material-symbols-outlined text-[28px]">logout</span></button>
           <button
             onClick={() => onNavigate('settings')}
             className="transition-all duration-300 hover:opacity-80 active:scale-95"

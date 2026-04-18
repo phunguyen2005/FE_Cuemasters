@@ -204,7 +204,7 @@ export default function Login({ onNavigate }: ScreenProps) {
               <div className="absolute inset-0 h-3 w-3 animate-ping rounded-full bg-tertiary opacity-40"></div>
             </div>
             <span className="text-xs font-bold uppercase tracking-[0.18em] text-surface">
-              Hệ thống đang trực tuyến
+              {/* Hệ thống đang trực tuyến */}
             </span>
           </div>
         </div>

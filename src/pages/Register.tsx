@@ -1,11 +1,11 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { ArrowLeft, ArrowRight, Flag, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ScreenProps } from '../types';
 import { authService } from '../services/authService';
 
 export default function Register({ onNavigate }: ScreenProps) {
-  const googleSsoMessage = 'ÄÄƒng kÃ½ báº±ng Google sáº½ sá»›m Ä‘Æ°á»£c há»— trá»£.';
+  const googleSsoMessage = 'Đăng ký bằng Google sẽ sớm được hỗ trợ.';
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -19,7 +19,7 @@ export default function Register({ onNavigate }: ScreenProps) {
     setError('');
 
     if (password !== confirmPassword) {
-      setError('Máº­t kháº©u xÃ¡c nháº­n chÆ°a khá»›p.');
+      setError('Mật khẩu xác nhận chưa khớp.');
       return;
     }
 
@@ -29,7 +29,7 @@ export default function Register({ onNavigate }: ScreenProps) {
       await authService.register(email, password, fullName);
       navigate('/verify-email', { state: { email, purpose: 'activate' } });
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Dang ky that bai. Vui long thu lai sau.');
+      setError(err.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại sau.');
     } finally {
       setIsSubmitting(false);
     }
@@ -44,7 +44,7 @@ export default function Register({ onNavigate }: ScreenProps) {
       <section className="relative hidden items-center justify-center overflow-hidden bg-on-surface md:flex md:w-1/2 lg:w-3/5">
         <div className="absolute inset-0 z-0">
           <img
-            alt="CÆ¡ thá»§ chuyÃªn nghiá»‡p trong khÃ´ng gian thi Ä‘áº¥u cao cáº¥p"
+            alt="Cơ thủ chuyên nghiệp trong không gian thi đấu cao cấp"
             className="h-full w-full scale-105 object-cover opacity-60 grayscale transition-all duration-1000 hover:grayscale-0"
             src="https://lh3.googleusercontent.com/aida-public/AB6AXuDtc1d5yiY6ZBu9lUUP2zeII5Eujit_2SaSZ9LHgsCWuoTIPJiL6IWM94vJnv5qJAYKiPwbFzp0uioFJrx5CVpHLR2SupW5eT4V9wBIq59eDPtfZmVksws1lXB_Ip0cvnEJp2kLRFFD7uuH-4FWEOGSgw-fl3V-1pKypdo0w5aL-RyS0GvB1KjsEbYpueVwhCQ0c6P624_A9UfHzGfJ8tIvkfPsFC9LtYj2rMA1C1VSNeo3gIhjzbxqD1gja-Kzthd7EfOJEXWVXm1I"
             referrerPolicy="no-referrer"
@@ -59,37 +59,37 @@ export default function Register({ onNavigate }: ScreenProps) {
             </span>
           </div>
           <h1 className="font-headline mb-6 text-5xl font-extrabold leading-tight tracking-[-0.08em] text-white lg:text-7xl">
-            Äá»ˆNH CAO Cá»¦A
+            ĐỈNH CAO CỦA
             <br />
-            <span className="italic text-primary">Sá»° CHÃNH XÃC.</span>
+            <span className="italic text-primary">SỰ CHÍNH XÁC.</span>
           </h1>
           <p className="mb-10 max-w-md text-lg leading-relaxed text-surface-variant/80">
-            Gia nháº­p cá»™ng Ä‘á»“ng cÆ¡ thá»§ hiá»‡n Ä‘áº¡i. Theo dÃµi tiáº¿n trÃ¬nh luyá»‡n táº­p, Ä‘áº·t bÃ n nhanh vÃ 
-            quáº£n lÃ½ lá»‹ch chÆ¡i cá»§a báº¡n trong má»™t giao diá»‡n thá»‘ng nháº¥t báº±ng tiáº¿ng Viá»‡t.
+            Gia nhập cộng đồng cơ thủ hiện đại. Theo dõi tiến trình luyện tập, đặt bàn nhanh và
+            quản lý lịch chơi của bạn trong một giao diện thống nhất bằng tiếng Việt.
           </p>
 
           <div className="flex items-center gap-6">
             <div className="flex -space-x-3">
               <img
-                alt="ThÃ nh viÃªn CueMasters 1"
+                alt="Thành viên CueMasters 1"
                 className="h-10 w-10 rounded-full border-2 border-on-surface"
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuB8UKFCj53NqUrGT8BvMcYt2OB0Kus6419SHB-96e6OXozfa9aepPQgLAoZks_xoUs4Axz60OuKSwD8_v2TSq_P2U7hDrqJodrg74kZo5BJwY0PowFkqfwZf-Xrr794VwdwldXCTlMZpV6MCfMNUlRtjOQ1mHzCfhFkLQkdwZUykKCdXG0ACctrptUuaR6YimqBYULFDb0OruBsy8STp6PlfZoBe4vgwX6wpAF2bDIuGzWdyzdpGUU0G1b9yceBXogqlyk2qFzefhFO"
                 referrerPolicy="no-referrer"
               />
               <img
-                alt="ThÃ nh viÃªn CueMasters 2"
+                alt="Thành viên CueMasters 2"
                 className="h-10 w-10 rounded-full border-2 border-on-surface"
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuCI4vP7Y7xrAmRDbp9lC1_fJgjJmwksoSghUXoVwHXvf_Tj_6ChUDTSFxTISqF0TsZB9QPaUBfKFvjBh2OJ8O0WAK_52M_IQZQyyeIHmNSbeIhuWtnnils7oINDfq1sAn95EGjOM_ThVdzkiq4y6q7qXVBEHli_92FSwz2aXRNQvx_P_htRCA12mSSbSvakJGgil2oryZpWrzWajhLYL5gOtnqlGBScE84QYpJ-vk25MY5VRuItiNt5wJd8nlvflF1WtRnr92sF58Ld"
                 referrerPolicy="no-referrer"
               />
               <img
-                alt="ThÃ nh viÃªn CueMasters 3"
+                alt="Thành viên CueMasters 3"
                 className="h-10 w-10 rounded-full border-2 border-on-surface"
                 src="https://lh3.googleusercontent.com/aida-public/AB6AXuBCiGFuFGppEr6Z2TwVCaLEWZuq0GtOx4SmsyfKzxuzHvrvajTSFhSU7PAiyjAUnmeOnu5vPAawC7guDeImtzb4ue2VOXmwyOAhCdUZ3xG_HqUNamEbm_qbCmvjLPO83JWMzUcFcXcWzDQmqh-kuHvZpRrmG0vmELlGnl9FfcYWsOXHWdGWuYww0ajDBKQvN3jIHJReRTiolAsR2S8Ap85q4dRpaKJbwbrOgATe7UqJr1jkoH0LW7Avaxicse7el4fYRfMe3DgSZdMh"
                 referrerPolicy="no-referrer"
               />
             </div>
-            <p className="text-sm font-medium text-surface-variant">HÆ¡n 2.400 cÆ¡ thá»§ Ä‘Ã£ tham gia</p>
+            <p className="text-sm font-medium text-surface-variant">Hơn 2.400 cơ thủ đã tham gia</p>
           </div>
         </div>
 
@@ -106,7 +106,7 @@ export default function Register({ onNavigate }: ScreenProps) {
             className="inline-flex items-center gap-2 text-sm font-semibold text-secondary transition-colors hover:text-primary"
           >
             <ArrowLeft className="h-4 w-4" />
-            <span>Vá» Ä‘Äƒng nháº­p</span>
+            <span>Về đăng nhập</span>
           </button>
         </div>
 
@@ -117,10 +117,10 @@ export default function Register({ onNavigate }: ScreenProps) {
             </span>
           </div>
           <h2 className="font-headline mb-3 text-3xl font-extrabold tracking-[-0.05em] text-on-surface">
-            Táº¡o tÃ i khoáº£n má»›i
+            Tạo tài khoản mới
           </h2>
           <p className="font-body text-sm text-secondary">
-            Báº¯t Ä‘áº§u hÃ nh trÃ¬nh chinh phá»¥c nhá»¯ng Ä‘Æ°á»ng cÆ¡ Ä‘áº¹p vÃ  lá»‹ch chÆ¡i Ä‘Æ°á»£c sáº¯p xáº¿p rÃµ rÃ ng.
+            Bắt đầu hành trình chinh phục những đường cơ đẹp và lịch chơi được sắp xếp rõ ràng.
           </p>
         </div>
 
@@ -129,13 +129,13 @@ export default function Register({ onNavigate }: ScreenProps) {
 
           <div className="space-y-1.5">
             <label className="ml-1 font-label text-xs font-bold uppercase tracking-[0.18em] text-secondary" htmlFor="name">
-              Há» vÃ  tÃªn
+              Họ và tên
             </label>
             <input
               className="w-full rounded-2xl border border-transparent bg-surface-container-low px-4 py-4 font-body text-on-surface outline-none transition-all placeholder:text-outline/50 focus:border-primary focus:ring-2 focus:ring-primary/10"
               id="name"
               name="name"
-              placeholder="Nguyá»…n VÄƒn A"
+              placeholder="Nguyễn Văn A"
               type="text"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
@@ -162,13 +162,13 @@ export default function Register({ onNavigate }: ScreenProps) {
           <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             <div className="space-y-1.5">
               <label className="ml-1 font-label text-xs font-bold uppercase tracking-[0.18em] text-secondary" htmlFor="reg-password">
-                Máº­t kháº©u
+                Mật khẩu
               </label>
               <input
                 className="w-full rounded-2xl border border-transparent bg-surface-container-low px-4 py-4 font-body text-on-surface outline-none transition-all placeholder:text-outline/50 focus:border-primary focus:ring-2 focus:ring-primary/10"
                 id="reg-password"
                 name="password"
-                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                placeholder="••••••••"
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -177,13 +177,13 @@ export default function Register({ onNavigate }: ScreenProps) {
             </div>
             <div className="space-y-1.5">
               <label className="ml-1 font-label text-xs font-bold uppercase tracking-[0.18em] text-secondary" htmlFor="confirm-password">
-                XÃ¡c nháº­n
+                Xác nhận
               </label>
               <input
                 className="w-full rounded-2xl border border-transparent bg-surface-container-low px-4 py-4 font-body text-on-surface outline-none transition-all placeholder:text-outline/50 focus:border-primary focus:ring-2 focus:ring-primary/10"
                 id="confirm-password"
                 name="confirm-password"
-                placeholder="â€¢â€¢â€¢â€¢â€¢â€¢â€¢â€¢"
+                placeholder="••••••••"
                 type="password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
@@ -202,8 +202,8 @@ export default function Register({ onNavigate }: ScreenProps) {
               />
             </div>
             <label className="font-body text-xs leading-relaxed text-secondary" htmlFor="terms">
-              TÃ´i Ä‘á»“ng Ã½ vá»›i <a className="font-semibold text-primary hover:underline" href="#terms">Äiá»u khoáº£n dá»‹ch vá»¥</a> vÃ {' '}
-              <a className="font-semibold text-primary hover:underline" href="#privacy">ChÃ­nh sÃ¡ch báº£o máº­t</a> cá»§a CueMasters.
+              Tôi đồng ý với <a className="font-semibold text-primary hover:underline" href="#terms">Điều khoản dịch vụ</a> và{' '}
+              <a className="font-semibold text-primary hover:underline" href="#privacy">Chính sách bảo mật</a> của CueMasters.
             </label>
           </div>
 
@@ -212,14 +212,14 @@ export default function Register({ onNavigate }: ScreenProps) {
             type="submit"
             disabled={isSubmitting}
           >
-            <span>{isSubmitting ? 'Dang dang ky...' : 'ÄÄƒng kÃ½ ngay'}</span>
+            <span>{isSubmitting ? 'Đang đăng ký...' : 'Đăng ký ngay'}</span>
             <ArrowRight className="h-5 w-5 transition-transform group-hover:translate-x-1" />
           </button>
 
           <div className="relative flex items-center py-6">
             <div className="flex-grow border-t border-outline-variant/30"></div>
             <span className="mx-4 flex-shrink text-xs font-bold uppercase tracking-[0.18em] text-outline/40">
-              Hoáº·c
+              Hoặc
             </span>
             <div className="flex-grow border-t border-outline-variant/30"></div>
           </div>
@@ -232,28 +232,28 @@ export default function Register({ onNavigate }: ScreenProps) {
             aria-label={googleSsoMessage}
           >
             <Globe className="h-5 w-5 text-secondary" />
-            <span>ÄÄƒng kÃ½ vá»›i Google</span>
+            <span>Đăng ký với Google</span>
           </button>
         </form>
 
         <div className="mt-10 text-center">
           <p className="font-body text-sm text-secondary">
-            ÄÃ£ cÃ³ tÃ i khoáº£n?
+            Đã có tài khoản?
             <button
               type="button"
               onClick={() => onNavigate('login')}
               className="ml-1 font-bold text-primary hover:underline"
             >
-              ÄÄƒng nháº­p ngay
+              Đăng nhập ngay
             </button>
           </p>
         </div>
 
         <div className="mt-auto flex items-center justify-between pt-10 text-[10px] font-bold uppercase tracking-[0.2em] text-outline/40">
-          <span>CueMasters Â© 2024</span>
+          <span>CueMasters © 2024</span>
           <div className="flex gap-4">
-            <a className="transition-colors hover:text-primary" href="#privacy">Báº£o máº­t</a>
-            <a className="transition-colors hover:text-primary" href="#support">Há»— trá»£</a>
+            <a className="transition-colors hover:text-primary" href="#privacy">Bảo mật</a>
+            <a className="transition-colors hover:text-primary" href="#support">Hỗ trợ</a>
           </div>
         </div>
       </section>

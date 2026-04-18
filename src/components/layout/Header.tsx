@@ -1,6 +1,7 @@
 import React from 'react';
 import { Screen, ScreenProps } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
+import { authService } from '../../services/authService';
 
 interface HeaderProps extends ScreenProps {
   activeScreen: Screen;
@@ -19,6 +20,15 @@ export default function Header({ onNavigate, activeScreen }: HeaderProps) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
   const visibleNavItems = navItems.filter((item) => !item.requiresAuth || isAuthenticated);
+
+  const handleLogout = async () => {
+    try {
+      await authService.logout();
+    } catch {
+      // ignore network errors; still clear client state
+    }
+    logout();
+  };
 
   return (
     <header className="fixed top-0 z-50 w-full border-b border-white/60 bg-white/78 backdrop-blur-xl shadow-[0_1px_3px_rgba(0,0,0,0.05)]">
@@ -54,7 +64,7 @@ export default function Header({ onNavigate, activeScreen }: HeaderProps) {
             <>
               <button
                 title="Đăng xuất"
-                onClick={() => logout()}
+                onClick={handleLogout}
                 className="mr-1 transition-all duration-300 hover:text-red-500"
               >
                 <span className="material-symbols-outlined text-[28px]">logout</span>

@@ -1,10 +1,11 @@
+import axios from 'axios';
 import api from './api';
 import { Role } from '../types';
 
 export interface LoginResponse {
   id: string;
   token: string;
-  refreshToken: string;
+  refreshToken?: string;
   email: string;
   fullName: string;
   role: Role;
@@ -15,13 +16,13 @@ export const authService = {
     const response = await api.post<LoginResponse>('/auth/login', { email, password });
     return response.data;
   },
-  
+
   register: async (email: string, password: string, fullName: string, phoneNumber?: string): Promise<LoginResponse> => {
-    const response = await api.post<LoginResponse>('/auth/register', { 
-      email, 
-      password, 
-      fullName, 
-      phoneNumber 
+    const response = await api.post<LoginResponse>('/auth/register', {
+      email,
+      password,
+      fullName,
+      phoneNumber,
     });
     return response.data;
   },
@@ -42,12 +43,15 @@ export const authService = {
   },
 
   refreshToken: async (refreshToken: string): Promise<LoginResponse> => {
-    const response = await api.post<LoginResponse>('/auth/refresh-token', { refreshToken });
+    const response = await axios.post<LoginResponse>(`${api.defaults.baseURL}/auth/refresh-token`, { refreshToken });
     return response.data;
   },
 
-  logout: async () => {
-    const response = await api.post('/auth/logout');
-    return response.data;
+  logout: async (): Promise<void> => {
+    await api.post('/auth/logout');
+  },
+
+  revokeToken: async (refreshToken: string): Promise<void> => {
+    await api.post('/auth/revoke-token', { refreshToken });
   },
 };

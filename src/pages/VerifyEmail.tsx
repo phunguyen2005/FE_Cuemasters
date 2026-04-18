@@ -79,7 +79,7 @@ const VerifyEmail = () => {
           role: response.role,
         },
         response.token,
-        response.refreshToken,
+        response.refreshToken ?? null,
       );
       navigate(getDefaultRouteForRole(response.role));
     } catch (error: any) {

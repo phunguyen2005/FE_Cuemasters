@@ -7,21 +7,26 @@ interface AuthState {
   token: string | null;
   refreshToken: string | null;
   isAuthenticated: boolean;
-  login: (user: User, token: string, refreshToken: string) => void;
+  login: (user: User, token: string, refreshToken: string | null) => void;
+  setTokens: (token: string | null, refreshToken: string | null) => void;
   updateUser: (updates: Partial<User>) => void;
   logout: () => void;
 }
 
-const getApiBaseUrl = () => (import.meta.env.VITE_API_URL || 'http://localhost:5235/api').replace(/\/$/, '');
-
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set, get) => ({
+    (set) => ({
       user: null,
       token: null,
       refreshToken: null,
       isAuthenticated: false,
       login: (user, token, refreshToken) => set({ user, token, refreshToken, isAuthenticated: true }),
+      setTokens: (token, refreshToken) => set((state) => ({
+        user: state.user,
+        token,
+        refreshToken,
+        isAuthenticated: token !== null,
+      })),
       updateUser: (updates) =>
         set((state) => {
           if (!state.user) {
@@ -35,21 +40,7 @@ export const useAuthStore = create<AuthState>()(
             },
           };
         }),
-      logout: () => {
-        const token = get().token;
-
-        if (token) {
-          void fetch(`${getApiBaseUrl()}/auth/logout`, {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              Authorization: `Bearer ${token}`,
-            },
-          }).catch(() => undefined);
-        }
-
-        set({ user: null, token: null, refreshToken: null, isAuthenticated: false });
-      },
+      logout: () => set({ user: null, token: null, refreshToken: null, isAuthenticated: false }),
     }),
     {
       name: 'auth-storage',

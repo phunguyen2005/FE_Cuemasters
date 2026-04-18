@@ -30,7 +30,7 @@ export default function Login({ onNavigate }: ScreenProps) {
           role: response.role,
         },
         response.token,
-        response.refreshToken,
+        response.refreshToken ?? null,
       );
       navigate(getDefaultRouteForRole(response.role));
     } catch (err: any) {

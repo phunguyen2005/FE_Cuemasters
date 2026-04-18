@@ -264,8 +264,11 @@ export const MenuView = () => {
       >
         <form onSubmit={handleSave} className="space-y-4">
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">Tên món</label>
+            <label htmlFor="menuItemName" className="mb-1 block text-sm font-medium text-neutral-700">
+              Tên món
+            </label>
             <input
+              id="menuItemName"
               required
               type="text"
               className="w-full rounded-xl border border-neutral-200 px-4 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -276,8 +279,11 @@ export const MenuView = () => {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">Danh mục</label>
+            <label htmlFor="menuItemCategory" className="mb-1 block text-sm font-medium text-neutral-700">
+              Danh mục
+            </label>
             <select
+              id="menuItemCategory"
               className="w-full rounded-xl border border-neutral-200 px-4 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               value={formData.category}
               onChange={(event) =>
@@ -291,8 +297,11 @@ export const MenuView = () => {
             </select>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">Giá bán</label>
+            <label htmlFor="menuItemPrice" className="mb-1 block text-sm font-medium text-neutral-700">
+              Giá bán
+            </label>
             <input
+              id="menuItemPrice"
               required
               type="number"
               min="0"
@@ -307,10 +316,11 @@ export const MenuView = () => {
             />
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label htmlFor="menuItemImageUrl" className="mb-1 block text-sm font-medium text-neutral-700">
               Link ảnh (tùy chọn)
             </label>
             <input
+              id="menuItemImageUrl"
               type="text"
               className="w-full rounded-xl border border-neutral-200 px-4 py-2 focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
               value={formData.imageUrl}

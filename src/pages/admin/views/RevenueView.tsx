@@ -10,6 +10,64 @@ type RevenueStructureItem = {
   color: string;
 };
 
+const PERCENT_STEP = 10;
+
+const WIDTH_CLASS_BY_STEP: Record<number, string> = {
+  0: 'w-0',
+  10: 'w-[10%]',
+  20: 'w-[20%]',
+  30: 'w-[30%]',
+  40: 'w-[40%]',
+  50: 'w-1/2',
+  60: 'w-[60%]',
+  70: 'w-[70%]',
+  80: 'w-[80%]',
+  90: 'w-[90%]',
+  100: 'w-full',
+};
+
+const HEIGHT_CLASS_BY_STEP: Record<number, string> = {
+  0: 'h-0',
+  10: 'h-[10%]',
+  20: 'h-[20%]',
+  30: 'h-[30%]',
+  40: 'h-[40%]',
+  50: 'h-1/2',
+  60: 'h-[60%]',
+  70: 'h-[70%]',
+  80: 'h-[80%]',
+  90: 'h-[90%]',
+  100: 'h-full',
+};
+
+const OPACITY_CLASS_BY_STEP: Record<number, string> = {
+  10: 'opacity-10',
+  20: 'opacity-20',
+  30: 'opacity-30',
+  40: 'opacity-40',
+  50: 'opacity-50',
+  60: 'opacity-60',
+  70: 'opacity-70',
+  80: 'opacity-80',
+  90: 'opacity-90',
+  100: 'opacity-100',
+};
+
+const clampPercent = (value: number, min = 0, max = 100) =>
+  Math.max(min, Math.min(max, value));
+
+const toStep = (value: number, step = PERCENT_STEP) =>
+  Math.round(clampPercent(value) / step) * step;
+
+const getWidthClass = (value: number) => WIDTH_CLASS_BY_STEP[toStep(value)] || 'w-0';
+
+const getHeightClass = (value: number) => HEIGHT_CLASS_BY_STEP[toStep(value)] || 'h-0';
+
+const getOpacityClass = (value: number) => {
+  const stepped = Math.round(clampPercent(value, 10, 100) / PERCENT_STEP) * PERCENT_STEP;
+  return OPACITY_CLASS_BY_STEP[stepped] || 'opacity-100';
+};
+
 const startOfDayIso = (value: Date) => {
   const date = new Date(value);
   date.setHours(0, 0, 0, 0);
@@ -272,16 +330,22 @@ export const RevenueView = () => {
             ))}
           </div>
           <select
+            id="revenueBasis"
             value={basis}
             onChange={(event) => setBasis(event.target.value as 'service' | 'payment')}
             className="rounded-lg border border-neutral-200 bg-surface-lowest px-3 py-2 text-sm"
+            aria-label="Cơ sở thống kê doanh thu"
           >
             <option value="service">Theo ngày sử dụng</option>
             <option value="payment">Theo ngày thanh toán</option>
           </select>
           {dateFilter === 'custom' && (
             <div className="ml-2 flex items-center gap-2 border-l border-neutral-200 pl-4">
+              <label htmlFor="revenueFromDate" className="sr-only">
+                Từ ngày
+              </label>
               <input
+                id="revenueFromDate"
                 type="date"
                 value={customRange.from}
                 onChange={(event) =>
@@ -290,7 +354,11 @@ export const RevenueView = () => {
                 className="rounded border border-neutral-200 bg-surface-lowest px-2 py-1 text-sm"
               />
               <span>-</span>
+              <label htmlFor="revenueToDate" className="sr-only">
+                Đến ngày
+              </label>
               <input
+                id="revenueToDate"
                 type="date"
                 value={customRange.to}
                 onChange={(event) =>
@@ -371,8 +439,7 @@ export const RevenueView = () => {
                 </p>
                 <div className="h-2 overflow-hidden rounded-full bg-surface-low">
                   <div
-                    className={`h-full ${item.color}`}
-                    style={{ width: `${Math.max(0, Math.min(item.val, 100))}%` }}
+                    className={`h-full ${item.color} ${getWidthClass(item.val)}`}
                   ></div>
                 </div>
               </div>
@@ -394,8 +461,7 @@ export const RevenueView = () => {
                 <div key={point.label} className="group flex h-full flex-1 flex-col items-center">
                   <div className="relative flex h-full w-full items-end rounded-t-md bg-surface-low">
                     <div
-                      className="w-full rounded-t-md bg-primary transition-all duration-300 group-hover:opacity-80"
-                      style={{ height: `${heightPercent}%` }}
+                      className={`w-full rounded-t-md bg-primary transition-all duration-300 group-hover:opacity-80 ${getHeightClass(heightPercent)}`}
                     ></div>
                     <div className="pointer-events-none absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-neutral-900 px-2 py-1 text-xs text-white opacity-0 transition-opacity group-hover:opacity-100">
                       {point.revenue.toLocaleString()}đ
@@ -441,13 +507,10 @@ export const RevenueView = () => {
                 {heatmapMatrix.map((row, rowIndex) => (
                   <div key={rowIndex} className="grid h-4 grid-cols-24 gap-1">
                     {row.map((rate, columnIndex) => {
-                      let opacity = Number(rate) / 100;
-                      if (opacity < 0.1) opacity = 0.1;
                       return (
                         <div
                           key={columnIndex}
-                          className="rounded-sm bg-primary"
-                          style={{ opacity }}
+                          className={`rounded-sm bg-primary ${getOpacityClass(Number(rate))}`}
                           title={`${rate}%`}
                         ></div>
                       );
@@ -476,7 +539,7 @@ export const RevenueView = () => {
                     <span className="font-bold">{value}%</span>
                   </div>
                   <div className="h-1.5 overflow-hidden rounded-full bg-surface-low">
-                    <div className="h-full bg-neutral-800" style={{ width: `${value}%` }}></div>
+                    <div className={`h-full bg-neutral-800 ${getWidthClass(value)}`}></div>
                   </div>
                 </div>
               );
@@ -500,7 +563,7 @@ export const RevenueView = () => {
               <span className="pl-2 text-lg font-normal opacity-80">/ 1B</span>
             </div>
             <div className="relative z-10 h-2 overflow-hidden rounded-full bg-black/20">
-              <div className="h-full bg-white" style={{ width: `${targetPercent}%` }}></div>
+              <div className={`h-full bg-white ${getWidthClass(targetPercent)}`}></div>
             </div>
           </div>
         </div>

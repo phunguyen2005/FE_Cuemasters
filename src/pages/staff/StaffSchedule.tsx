@@ -383,10 +383,11 @@ const StaffSchedule = () => {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <label className="mb-2 block font-body text-[10px] font-bold uppercase tracking-widest text-[#a0a0a0]">
+                      <label htmlFor="staffSlotStartTime" className="mb-2 block font-body text-[10px] font-bold uppercase tracking-widest text-[#a0a0a0]">
                         Bắt đầu
                       </label>
                       <input
+                        id="staffSlotStartTime"
                         type="time"
                         value={formState.startTime}
                         onChange={(e) => setFormState(prev => ({ ...prev, startTime: e.target.value }))}
@@ -394,10 +395,11 @@ const StaffSchedule = () => {
                       />
                     </div>
                     <div>
-                      <label className="mb-2 block font-body text-[10px] font-bold uppercase tracking-widest text-[#a0a0a0]">
+                      <label htmlFor="staffSlotEndTime" className="mb-2 block font-body text-[10px] font-bold uppercase tracking-widest text-[#a0a0a0]">
                         Kết thúc
                       </label>
                       <input
+                        id="staffSlotEndTime"
                         type="time"
                         value={formState.endTime}
                         onChange={(e) => setFormState(prev => ({ ...prev, endTime: e.target.value }))}
@@ -407,10 +409,11 @@ const StaffSchedule = () => {
                   </div>
 
                   <div>
-                    <label className="mb-2 block font-body text-[10px] font-bold uppercase tracking-widest text-[#a0a0a0]">
+                    <label htmlFor="staffSlotStatus" className="mb-2 block font-body text-[10px] font-bold uppercase tracking-widest text-[#a0a0a0]">
                       Trạng thái
                     </label>
                     <select
+                      id="staffSlotStatus"
                       value={formState.isBlocked ? 'true' : 'false'}
                       onChange={(e) => setFormState(prev => ({ ...prev, isBlocked: e.target.value === 'true' }))}
                       className="w-full appearance-none border-b border-white/20 bg-white/5 p-3 font-body text-white transition-colors focus:border-primary focus:outline-none"
@@ -421,10 +424,11 @@ const StaffSchedule = () => {
                   </div>
 
                   <div>
-                    <label className="mb-2 flex items-center gap-2 font-body text-[10px] font-bold uppercase tracking-widest text-[#a0a0a0]">
+                    <label htmlFor="staffSlotSpecificDate" className="mb-2 flex items-center gap-2 font-body text-[10px] font-bold uppercase tracking-widest text-[#a0a0a0]">
                       <CalendarIcon size={12}/> Ngày cụ thể (tùy chọn)
                     </label>
                     <input
+                      id="staffSlotSpecificDate"
                       type="date"
                       value={formState.specificDate}
                       onChange={(e) => setFormState(prev => ({ ...prev, specificDate: e.target.value }))}

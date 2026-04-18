@@ -8,6 +8,9 @@ import { Navigate, Routes, Route, useNavigate } from 'react-router-dom';
 import { getDefaultRouteForRole, useAuth } from './hooks/useAuth';
 import Register from './pages/Register';
 import Login from './pages/Login';
+import VerifyEmail from './pages/VerifyEmail';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import Home from './pages/Home';
 import FloorPlan from './pages/FloorPlan';
 import Coaches from './pages/Coaches';
@@ -62,6 +65,9 @@ export default function App() {
       <Route path="/" element={<Home onNavigate={handleNavigate} />} />
       <Route path="/login" element={<RootRedirect onNavigate={handleNavigate} />} />
       <Route path="/register" element={<Register onNavigate={handleNavigate} />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
 
       {/* Public browse routes */}
       <Route path="/floor-plan" element={<FloorPlan onNavigate={handleNavigate} />} />

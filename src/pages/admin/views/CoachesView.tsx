@@ -425,7 +425,12 @@ export const CoachesView = () => {
             <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-amber-500">
               <Star size={12} className="fill-amber-500" /> HLV nổi bật
             </span>
-            <button className="text-neutral-400 hover:text-neutral-900">
+            <button
+              type="button"
+              className="text-neutral-400 hover:text-neutral-900"
+              aria-label="Tùy chọn huấn luyện viên nổi bật"
+              title="Tùy chọn"
+            >
               <MoreVertical size={16} />
             </button>
           </div>
@@ -479,8 +484,11 @@ export const CoachesView = () => {
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">Họ tên</label>
+              <label htmlFor="coachFullName" className="mb-1 block text-sm font-medium text-neutral-700">
+                Họ tên
+              </label>
               <input
+                id="coachFullName"
                 required
                 type="text"
                 value={formData.fullName}
@@ -492,8 +500,11 @@ export const CoachesView = () => {
               />
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">Email</label>
+              <label htmlFor="coachEmail" className="mb-1 block text-sm font-medium text-neutral-700">
+                Email
+              </label>
               <input
+                id="coachEmail"
                 required
                 type="email"
                 value={formData.email}
@@ -519,10 +530,11 @@ export const CoachesView = () => {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">
+              <label htmlFor="coachSpecialty" className="mb-1 block text-sm font-medium text-neutral-700">
                 Chuyên môn
               </label>
               <select
+                id="coachSpecialty"
                 value={formData.specialty}
                 onChange={(event) =>
                   setFormData({ ...formData, specialty: event.target.value })
@@ -535,10 +547,11 @@ export const CoachesView = () => {
               </select>
             </div>
             <div>
-              <label className="mb-1 block text-sm font-medium text-neutral-700">
+              <label htmlFor="coachHourlyRate" className="mb-1 block text-sm font-medium text-neutral-700">
                 Phí / giờ (VND)
               </label>
               <input
+                id="coachHourlyRate"
                 required
                 type="number"
                 min="0"
@@ -553,8 +566,11 @@ export const CoachesView = () => {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">Tiểu sử</label>
+            <label htmlFor="coachBio" className="mb-1 block text-sm font-medium text-neutral-700">
+              Tiểu sử
+            </label>
             <textarea
+              id="coachBio"
               rows={3}
               value={formData.bio}
               onChange={(event) => setFormData({ ...formData, bio: event.target.value })}
@@ -564,10 +580,11 @@ export const CoachesView = () => {
           </div>
 
           <div>
-            <label className="mb-1 block text-sm font-medium text-neutral-700">
+            <label htmlFor="coachPhotoUrl" className="mb-1 block text-sm font-medium text-neutral-700">
               Link ảnh avatar
             </label>
             <input
+              id="coachPhotoUrl"
               type="text"
               value={formData.photoUrl}
               onChange={(event) =>

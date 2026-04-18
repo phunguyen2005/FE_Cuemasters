@@ -313,8 +313,11 @@ export const MembershipView = () => {
                 </h3>
               </div>
               <button
+                type="button"
                 onClick={handleCloseModal}
                 className="rounded-full bg-surface-low p-2 text-neutral-500 transition-colors hover:text-black"
+                aria-label="Đóng biểu mẫu gói thành viên"
+                title="Đóng"
               >
                 <X size={18} />
               </button>
@@ -322,8 +325,11 @@ export const MembershipView = () => {
 
             <form onSubmit={handleSubmit} className="grid gap-4 md:grid-cols-2">
               <div className="md:col-span-2">
-                <label className="mb-1 block text-sm font-medium text-neutral-700">Tên gói</label>
+                <label htmlFor="membershipName" className="mb-1 block text-sm font-medium text-neutral-700">
+                  Tên gói
+                </label>
                 <input
+                  id="membershipName"
                   type="text"
                   value={formData.name}
                   onChange={(event) => setFormData({ ...formData, name: event.target.value })}
@@ -333,8 +339,11 @@ export const MembershipView = () => {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700">Hạng gói</label>
+                <label htmlFor="membershipTier" className="mb-1 block text-sm font-medium text-neutral-700">
+                  Hạng gói
+                </label>
                 <select
+                  id="membershipTier"
                   value={formData.tier}
                   onChange={(event) =>
                     setFormData({
@@ -351,10 +360,11 @@ export const MembershipView = () => {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700">
+                <label htmlFor="membershipPrice" className="mb-1 block text-sm font-medium text-neutral-700">
                   Giá mỗi tháng
                 </label>
                 <input
+                  id="membershipPrice"
                   type="number"
                   min={0}
                   value={formData.monthlyPrice}
@@ -367,10 +377,11 @@ export const MembershipView = () => {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700">
+                <label htmlFor="membershipDiscount" className="mb-1 block text-sm font-medium text-neutral-700">
                   Giảm giá bàn (%)
                 </label>
                 <input
+                  id="membershipDiscount"
                   type="number"
                   min={0}
                   value={formData.tableDiscountPercent}
@@ -386,10 +397,11 @@ export const MembershipView = () => {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700">
+                <label htmlFor="membershipAdvanceDays" className="mb-1 block text-sm font-medium text-neutral-700">
                   Đặt trước tối đa (ngày)
                 </label>
                 <input
+                  id="membershipAdvanceDays"
                   type="number"
                   min={0}
                   value={formData.maxAdvanceBookingDays}
@@ -405,10 +417,11 @@ export const MembershipView = () => {
               </div>
 
               <div>
-                <label className="mb-1 block text-sm font-medium text-neutral-700">
+                <label htmlFor="membershipFreeCoaching" className="mb-1 block text-sm font-medium text-neutral-700">
                   Buổi HLV miễn phí/tháng
                 </label>
                 <input
+                  id="membershipFreeCoaching"
                   type="number"
                   min={0}
                   value={formData.freeCoachingSessionsPerMonth}

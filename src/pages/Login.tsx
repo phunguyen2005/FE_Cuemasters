@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { ArrowLeft, Quote, Globe } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getDefaultRouteForRole } from '../hooks/useAuth';
 import { ScreenProps } from '../types';
 import { authService } from '../services/authService';
@@ -9,9 +9,12 @@ import { useAuthStore } from '../stores/authStore';
 export default function Login({ onNavigate }: ScreenProps) {
   const googleSsoMessage = 'Đăng nhập Google sẽ sớm được hỗ trợ.';
   const navigate = useNavigate();
+  const location = useLocation();
+  const locationState = location.state as { message?: string } | null;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [successMessage] = useState(locationState?.message || '');
   const login = useAuthStore((state) => state.login);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -27,9 +30,15 @@ export default function Login({ onNavigate }: ScreenProps) {
           role: response.role,
         },
         response.token,
+        response.refreshToken,
       );
       navigate(getDefaultRouteForRole(response.role));
     } catch (err: any) {
+      if (err.response?.status === 403) {
+        navigate('/verify-email', { state: { email, purpose: 'activate' } });
+        return;
+      }
+
       setError(err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
     }
   };
@@ -68,6 +77,7 @@ export default function Login({ onNavigate }: ScreenProps) {
         </div>
 
         <form className="space-y-6" onSubmit={handleSubmit}>
+          {successMessage && <div className="text-sm font-semibold text-emerald-600">{successMessage}</div>}
           {error && <div className="text-sm font-semibold text-red-500">{error}</div>}
           <div>
             <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.18em] text-secondary" htmlFor="email">
@@ -89,9 +99,9 @@ export default function Login({ onNavigate }: ScreenProps) {
               <label className="block text-xs font-semibold uppercase tracking-[0.18em] text-secondary" htmlFor="password">
                 Mật khẩu
               </label>
-              <a className="text-xs font-medium text-primary transition-opacity hover:opacity-80" href="#forgot">
+              <Link className="text-xs font-medium text-primary transition-opacity hover:opacity-80" to="/forgot-password">
                 Quên mật khẩu?
-              </a>
+              </Link>
             </div>
             <input
               className="w-full rounded-2xl border border-transparent bg-surface-container-high px-4 py-4 outline-none transition-all duration-300 focus:border-primary focus:ring-2 focus:ring-primary/10"

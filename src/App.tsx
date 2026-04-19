@@ -17,6 +17,7 @@ import Coaches from './pages/Coaches';
 import Membership from './pages/Membership';
 import BookingHistory from './pages/BookingHistory';
 import Settings from './pages/Settings';
+import PaymentReturn from './pages/PaymentReturn';
 import AdminDashboard from './pages/admin/AdminDashboard';
 import StaffDashboard from './pages/staff/StaffDashboard';
 import StaffSchedule from './pages/staff/StaffSchedule';
@@ -73,6 +74,8 @@ export default function App() {
       <Route path="/floor-plan" element={<FloorPlan onNavigate={handleNavigate} />} />
       <Route path="/coaches" element={<Coaches onNavigate={handleNavigate} />} />
       <Route path="/membership" element={<Membership onNavigate={handleNavigate} />} />
+      <Route path="/payment/return" element={<PaymentReturn onNavigate={handleNavigate} />} />
+      <Route path="/payment/cancel" element={<Navigate to="/floor-plan" replace />} />
 
       {/* Authenticated customer routes */}
       <Route element={<ProtectedRoute requiredRoles={['Customer']} />}>

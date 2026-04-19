@@ -4,6 +4,9 @@ import { useNavigate } from 'react-router-dom';
 import { ScreenProps } from '../types';
 import { authService } from '../services/authService';
 
+const getErrorMessage = (error: any, fallback: string) =>
+  error?.response?.data?.message || error?.response?.data?.Message || fallback;
+
 export default function Register({ onNavigate }: ScreenProps) {
   const googleSsoMessage = 'Đăng ký bằng Google sẽ sớm được hỗ trợ.';
   const navigate = useNavigate();
@@ -29,7 +32,7 @@ export default function Register({ onNavigate }: ScreenProps) {
       await authService.register(email, password, fullName);
       navigate('/verify-email', { state: { email, purpose: 'activate' } });
     } catch (err: any) {
-      setError(err.response?.data?.message || 'Đăng ký thất bại. Vui lòng thử lại sau.');
+      setError(getErrorMessage(err, 'Đăng ký thất bại. Vui lòng thử lại sau.'));
     } finally {
       setIsSubmitting(false);
     }

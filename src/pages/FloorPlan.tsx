@@ -2,11 +2,12 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { addDays, addMinutes, format } from 'date-fns';
 import CustomerLayout from '../components/layout/CustomerLayout';
 import { useSignalR } from '../hooks/useSignalR';
-import { CategoryAvailabilitySlot, ScreenProps, TableType } from '../types';
+import { CategoryAvailabilitySlot, PaymentMethod, ScreenProps, TableType } from '../types';
 import { useBookingStore } from '../stores/bookingStore';
 import { useAuthStore } from '../stores/authStore';
 import { useMembershipStore } from '../stores/membershipStore';
 import { tableService } from '../services/tableService';
+import { paymentService } from '../services/paymentService';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getTableTypeLabel } from '../utils/labels';
 
@@ -93,6 +94,10 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
 
   const [bookingError, setBookingError] = useState('');
   const [bookingSuccess, setBookingSuccess] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState<Extract<PaymentMethod, 'Cash' | 'PayPal'>>(
+    'Cash',
+  );
+  const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [categoryRates, setCategoryRates] = useState<Record<TableType, number>>(
     DEFAULT_CATEGORY_RATES,
   );
@@ -236,6 +241,7 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
 
     setBookingError('');
     setBookingSuccess('');
+    setIsSubmittingPayment(true);
 
     try {
       const response = await createBooking({
@@ -246,6 +252,25 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
         fnBOrders: [],
       });
 
+      const reservationId = response.reservationId || response.bookingId;
+      if (!reservationId) {
+        throw new Error('Không tìm thấy mã lượt đặt bàn vừa tạo.');
+      }
+
+      const paymentResult = await paymentService.createPayment(reservationId, paymentMethod);
+      if (paymentResult.requiresRedirect) {
+        if (!paymentResult.approvalUrl) {
+          throw new Error('Không tìm thấy đường dẫn thanh toán PayPal.');
+        }
+
+        if (paymentResult.payPalOrderId) {
+          sessionStorage.setItem('pendingPayPalOrderId', paymentResult.payPalOrderId);
+        }
+        sessionStorage.setItem('pendingReservationId', reservationId);
+        window.location.href = paymentResult.approvalUrl;
+        return;
+      }
+
       setBookingSuccess(response.message || 'Đặt bàn thành công.');
       clearBooking();
       onNavigate('bookingHistory');
@@ -253,6 +278,8 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
       setBookingError(
         getErrorMessage(error, 'Không thể tạo lượt đặt lúc này. Vui lòng thử lại sau.'),
       );
+    } finally {
+      setIsSubmittingPayment(false);
     }
   };
 
@@ -506,6 +533,36 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
                 </div>
               </div>
 
+              <div className="space-y-3">
+                <label className="text-[10px] font-bold uppercase tracking-[0.22em] text-secondary">
+                  Phương thức thanh toán cọc
+                </label>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('Cash')}
+                    className={`rounded-xl border px-4 py-3 text-sm font-bold transition-colors ${
+                      paymentMethod === 'Cash'
+                        ? 'border-primary bg-primary text-on-primary'
+                        : 'border-outline-variant/30 bg-surface-container-lowest text-secondary hover:border-primary/40 hover:text-primary'
+                    }`}
+                  >
+                    Tiền mặt
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPaymentMethod('PayPal')}
+                    className={`rounded-xl border px-4 py-3 text-sm font-bold transition-colors ${
+                      paymentMethod === 'PayPal'
+                        ? 'border-primary bg-primary text-on-primary'
+                        : 'border-outline-variant/30 bg-surface-container-lowest text-secondary hover:border-primary/40 hover:text-primary'
+                    }`}
+                  >
+                    PayPal
+                  </button>
+                </div>
+              </div>
+
               <div className="space-y-4 pt-4">
                 <div className="flex items-end justify-between border-b border-outline-variant/10 pb-4">
                   <div>
@@ -527,10 +584,15 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
                 <button
                   className="billiard-gradient w-full rounded-full py-5 text-sm font-bold uppercase tracking-[0.18em] text-on-primary transition-transform hover:translate-y-[-2px] active:scale-95 disabled:cursor-not-allowed disabled:opacity-60"
                   type="submit"
-                  disabled={!selectedCategory || orderedSelectedSlots.length === 0 || isBookingLoading}
+                  disabled={
+                    !selectedCategory ||
+                    orderedSelectedSlots.length === 0 ||
+                    isBookingLoading ||
+                    isSubmittingPayment
+                  }
                 >
-                  {isBookingLoading
-                    ? 'Đang tạo lượt đặt...'
+                  {isBookingLoading || isSubmittingPayment
+                    ? 'Đang xử lý thanh toán...'
                     : `Xác nhận đặt bàn - cọc ${DEPOSIT_AMOUNT / 1000}K`}
                 </button>
               </div>

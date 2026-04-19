@@ -19,7 +19,7 @@ export type TableType = 'Pool' | 'Snooker' | 'Carom';
 export type TableStatus = 'Available' | 'Reserved' | 'InUse' | 'Maintenance';
 export type AdminTableDisplayStatus = 'Available' | 'Reserved' | 'InUse' | 'Maintenance' | 'Inactive';
 export type BookingStatus = 'Pending' | 'Confirmed' | 'InProgress' | 'Completed' | 'Cancelled' | 'NoShow';
-export type PaymentMethod = 'Cash' | 'VnPay' | 'Stripe';
+export type PaymentMethod = 'Cash' | 'PayPal';
 export type PaymentStatus = 'Pending' | 'Completed' | 'Failed' | 'Refunded';
 
 export interface User {
@@ -218,6 +218,14 @@ export interface UserMembership {
 export interface SubscribeMembershipRequest {
   planId: number;
   autoRenew: boolean;
+  paymentMethod?: PaymentMethod;
+}
+
+export interface SubscribeMembershipResult {
+  membership?: UserMembership | null;
+  approvalUrl?: string | null;
+  payPalOrderId?: string | null;
+  requiresRedirect: boolean;
 }
 
 export interface AdminMembershipPlan {
@@ -253,6 +261,13 @@ export interface Payment {
   transactionId?: string;
   createdAt?: string;
   completedAt?: string | null;
+}
+
+export interface CreatePaymentResult {
+  payment: Payment;
+  approvalUrl?: string | null;
+  payPalOrderId?: string | null;
+  requiresRedirect: boolean;
 }
 
 export interface CoachSummary {

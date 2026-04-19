@@ -46,7 +46,7 @@ export const CheckoutPanel = ({
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
   const [linkableSessions, setLinkableSessions] = useState<LinkableCoachSession[]>([]);
-  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'VnPay'>('Cash');
+  const [paymentMethod, setPaymentMethod] = useState<'Cash' | 'Transfer'>('Cash');
   const [runningTotal, setRunningTotal] = useState<RunningTotal | null>(null);
   const [interimBill, setInterimBill] = useState<CheckoutSummary | null>(null);
 
@@ -135,7 +135,10 @@ export const CheckoutPanel = ({
     setSuccessMessage('');
 
     try {
-      const response = await adminService.checkoutBooking(bookingId, { paymentMethod });
+      const apiPaymentMethod = paymentMethod === 'Transfer' ? 'Cash' : paymentMethod;
+      const response = await adminService.checkoutBooking(bookingId, {
+        paymentMethod: apiPaymentMethod,
+      });
       setSuccessMessage(response.message || 'Thanh toán thành công.');
       onClose(true);
     } catch (submitError) {
@@ -330,9 +333,9 @@ export const CheckoutPanel = ({
             </button>
             <button
               type="button"
-              onClick={() => setPaymentMethod('VnPay')}
+              onClick={() => setPaymentMethod('Transfer')}
               className={`flex cursor-pointer flex-col items-center gap-2 rounded-xl border-2 p-3 transition-all ${
-                paymentMethod === 'VnPay'
+                paymentMethod === 'Transfer'
                   ? 'border-primary bg-primary/5 text-primary'
                   : 'border-neutral-200 text-neutral-500 hover:border-primary/50'
               }`}

@@ -1,5 +1,11 @@
 import api from './api';
-import { ApiMessageResponse, MembershipPlan, SubscribeMembershipRequest, UserMembership } from '../types';
+import {
+  ApiMessageResponse,
+  MembershipPlan,
+  SubscribeMembershipRequest,
+  SubscribeMembershipResult,
+  UserMembership,
+} from '../types';
 
 export const membershipService = {
   getPlans: async (): Promise<MembershipPlan[]> => {
@@ -21,9 +27,9 @@ export const membershipService = {
     }
   },
   
-  subscribe: async (data: SubscribeMembershipRequest): Promise<UserMembership> => {
+  subscribe: async (data: SubscribeMembershipRequest): Promise<SubscribeMembershipResult> => {
     try {
-      const response = await api.post<UserMembership>('/memberships/subscribe', data);
+      const response = await api.post<SubscribeMembershipResult>('/memberships/subscribe', data);
       return response.data;
     } catch (error) {
       console.error("Failed to subscribe", error);

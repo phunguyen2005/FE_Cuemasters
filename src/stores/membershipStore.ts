@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { MembershipPlan, UserMembership } from '../types';
+import { MembershipPlan, PaymentMethod, SubscribeMembershipResult, UserMembership } from '../types';
 import { membershipService } from '../services/membershipService';
 
 const getErrorMessage = (error: unknown, fallbackMessage: string) => {
@@ -31,7 +31,11 @@ interface MembershipState {
   error: string | null;
   fetchPlans: () => Promise<void>;
   fetchMyMembership: () => Promise<void>;
-  subscribe: (planId: number, autoRenew: boolean) => Promise<UserMembership>;
+  subscribe: (
+    planId: number,
+    autoRenew: boolean,
+    paymentMethod?: Extract<PaymentMethod, 'Cash' | 'PayPal'>,
+  ) => Promise<SubscribeMembershipResult>;
   cancelAutoRenew: () => Promise<boolean>;
   clearError: () => void;
 }
@@ -66,12 +70,14 @@ export const useMembershipStore = create<MembershipState>((set) => ({
     }
   },
 
-  subscribe: async (planId, autoRenew) => {
+  subscribe: async (planId, autoRenew, paymentMethod = 'Cash') => {
     set({ isLoading: true, error: null });
     try {
-      const myMembership = await membershipService.subscribe({ planId, autoRenew });
-      set({ myMembership });
-      return myMembership;
+      const result = await membershipService.subscribe({ planId, autoRenew, paymentMethod });
+      if (result.membership) {
+        set({ myMembership: result.membership });
+      }
+      return result;
     } catch (error) {
       const message = getErrorMessage(error, 'Không thể đăng ký gói thành viên lúc này.');
       set({ error: message });

@@ -105,10 +105,8 @@ export const getPaymentMethodLabel = (method?: PaymentMethod | string | null) =>
   switch (method) {
     case 'Cash':
       return 'Tiền mặt';
-    case 'VnPay':
-      return 'VNPay';
-    case 'Stripe':
-      return 'Stripe';
+    case 'PayPal':
+      return 'PayPal';
     default:
       return method || 'Chưa có';
   }

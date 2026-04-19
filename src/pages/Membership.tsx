@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import CustomerLayout from '../components/layout/CustomerLayout';
-import { ScreenProps, MembershipPlan } from '../types';
+import { MembershipPlan, PaymentMethod, ScreenProps } from '../types';
 import { useMembershipStore } from '../stores/membershipStore';
 import { useAuthStore } from '../stores/authStore';
 import { formatCurrency } from '../utils/formatCurrency';
@@ -69,6 +69,9 @@ export default function Membership({ onNavigate }: ScreenProps) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const activeMembership = isAuthenticated ? myMembership : null;
   const [autoRenewOnSubscribe, setAutoRenewOnSubscribe] = useState(true);
+  const [membershipPaymentMethod, setMembershipPaymentMethod] = useState<
+    Extract<PaymentMethod, 'Cash' | 'PayPal'>
+  >('Cash');
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -122,10 +125,27 @@ export default function Membership({ onNavigate }: ScreenProps) {
     setFeedback(null);
 
     try {
-      const membership = await subscribe(planId, autoRenewOnSubscribe);
+      const result = await subscribe(planId, autoRenewOnSubscribe, membershipPaymentMethod);
+
+      if (result.requiresRedirect) {
+        if (!result.approvalUrl) {
+          throw new Error('Không tìm thấy đường dẫn thanh toán PayPal.');
+        }
+
+        if (result.payPalOrderId) {
+          sessionStorage.setItem('pendingMembershipPayPalOrderId', result.payPalOrderId);
+        }
+        window.location.href = result.approvalUrl;
+        return;
+      }
+
+      if (!result.membership) {
+        throw new Error('Không tìm thấy thông tin gói thành viên vừa đăng ký.');
+      }
+
       setFeedback({
         type: 'success',
-        message: `Đăng ký gói ${membership.planName} thành công.`,
+        message: `Đăng ký gói ${result.membership.planName} thành công.`,
       });
     } catch (error) {
       setFeedback({
@@ -278,18 +298,45 @@ export default function Membership({ onNavigate }: ScreenProps) {
           )}
 
           {!activeMembership && (
-            <div className="flex justify-center">
-              <label className="group flex cursor-pointer items-center gap-4 rounded-2xl border border-stone-800/60 bg-stone-900/40 px-6 py-4 transition-colors hover:bg-stone-900/80">
-                <input
-                  type="checkbox"
-                  checked={autoRenewOnSubscribe}
-                  onChange={(event) => setAutoRenewOnSubscribe(event.target.checked)}
-                  className="h-5 w-5 rounded border-stone-700 bg-stone-950 text-emerald-500 transition-colors focus:ring-emerald-500/50 focus:ring-offset-stone-950"
-                />
-                <span className="select-none font-medium text-stone-300 transition-colors group-hover:text-white">
-                  Tự động gia hạn gói theo chu kỳ tháng
-                </span>
-              </label>
+            <div className="mx-auto flex max-w-2xl flex-col gap-5">
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() => setMembershipPaymentMethod('Cash')}
+                  className={`rounded-xl border px-5 py-4 text-sm font-bold transition-colors ${
+                    membershipPaymentMethod === 'Cash'
+                      ? 'border-primary bg-primary text-white'
+                      : 'border-stone-800 bg-stone-900/40 text-stone-300 hover:border-primary/50 hover:text-white'
+                  }`}
+                >
+                  Tiền mặt
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setMembershipPaymentMethod('PayPal')}
+                  className={`rounded-xl border px-5 py-4 text-sm font-bold transition-colors ${
+                    membershipPaymentMethod === 'PayPal'
+                      ? 'border-primary bg-primary text-white'
+                      : 'border-stone-800 bg-stone-900/40 text-stone-300 hover:border-primary/50 hover:text-white'
+                  }`}
+                >
+                  PayPal
+                </button>
+              </div>
+
+              <div className="flex justify-center">
+                <label className="group flex cursor-pointer items-center gap-4 rounded-2xl border border-stone-800/60 bg-stone-900/40 px-6 py-4 transition-colors hover:bg-stone-900/80">
+                  <input
+                    type="checkbox"
+                    checked={autoRenewOnSubscribe}
+                    onChange={(event) => setAutoRenewOnSubscribe(event.target.checked)}
+                    className="h-5 w-5 rounded border-stone-700 bg-stone-950 text-emerald-500 transition-colors focus:ring-emerald-500/50 focus:ring-offset-stone-950"
+                  />
+                  <span className="select-none font-medium text-stone-300 transition-colors group-hover:text-white">
+                    Tự động gia hạn gói theo chu kỳ tháng
+                  </span>
+                </label>
+              </div>
             </div>
           )}
 

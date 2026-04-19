@@ -1,21 +1,26 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Quote, Globe } from 'lucide-react';
+import { ArrowLeft, Quote, Globe, Loader2 } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getDefaultRouteForRole } from '../hooks/useAuth';
 import { ScreenProps } from '../types';
 import { authService } from '../services/authService';
 import { useAuthStore } from '../stores/authStore';
+import { createGoogleAuthorizationUrl, getGoogleClientId } from '../utils/googleOAuth';
 
 export default function Login({ onNavigate }: ScreenProps) {
-  const googleSsoMessage = 'Đăng nhập Google sẽ sớm được hỗ trợ.';
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = location.state as { message?: string } | null;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [successMessage] = useState(locationState?.message || '');
   const login = useAuthStore((state) => state.login);
+  const googleConfigured = !!getGoogleClientId();
+  const googleSsoMessage = googleConfigured
+    ? 'Đăng nhập bằng tài khoản Google.'
+    : 'Thiếu VITE_GOOGLE_CLIENT_ID trong cấu hình frontend.';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -45,6 +50,23 @@ export default function Login({ onNavigate }: ScreenProps) {
 
   const handleBackToHome = () => {
     navigate('/');
+  };
+
+  const handleGoogleSignIn = async () => {
+    setError('');
+    if (!googleConfigured) {
+      setError('Google login chưa được cấu hình. Thiếu VITE_GOOGLE_CLIENT_ID.');
+      return;
+    }
+
+    try {
+      setIsGoogleLoading(true);
+      const authorizationUrl = await createGoogleAuthorizationUrl();
+      window.location.assign(authorizationUrl);
+    } catch {
+      setIsGoogleLoading(false);
+      setError('Không thể khởi tạo đăng nhập Google. Vui lòng thử lại.');
+    }
   };
 
   return (
@@ -149,12 +171,17 @@ export default function Login({ onNavigate }: ScreenProps) {
         <button
           className="flex w-full items-center justify-center gap-3 rounded-full border border-outline-variant/20 bg-surface-container-low py-4 font-bold tracking-[-0.01em] text-on-surface transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-60"
           type="button"
-          disabled
+          onClick={() => void handleGoogleSignIn()}
+          disabled={isGoogleLoading || !googleConfigured}
           title={googleSsoMessage}
           aria-label={googleSsoMessage}
         >
-          <Globe className="h-5 w-5 text-secondary" />
-          <span>Tiếp tục với Google</span>
+          {isGoogleLoading ? (
+            <Loader2 className="h-5 w-5 animate-spin text-secondary" />
+          ) : (
+            <Globe className="h-5 w-5 text-secondary" />
+          )}
+          <span>{isGoogleLoading ? 'Đang chuyển hướng...' : 'Tiếp tục với Google'}</span>
         </button>
 
         <p className="mt-12 text-center text-sm text-secondary">

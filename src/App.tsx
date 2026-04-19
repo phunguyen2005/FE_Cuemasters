@@ -9,6 +9,7 @@ import { getDefaultRouteForRole, useAuth } from './hooks/useAuth';
 import Register from './pages/Register';
 import Login from './pages/Login';
 import VerifyEmail from './pages/VerifyEmail';
+import GoogleAuthCallback from './pages/GoogleAuthCallback';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
 import Home from './pages/Home';
@@ -67,6 +68,7 @@ export default function App() {
       <Route path="/login" element={<RootRedirect onNavigate={handleNavigate} />} />
       <Route path="/register" element={<Register onNavigate={handleNavigate} />} />
       <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route path="/auth/google/callback" element={<GoogleAuthCallback />} />
       <Route path="/forgot-password" element={<ForgotPassword />} />
       <Route path="/reset-password" element={<ResetPassword />} />
 

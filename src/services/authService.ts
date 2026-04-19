@@ -11,9 +11,21 @@ export interface LoginResponse {
   role: Role;
 }
 
+export interface ExternalGoogleLoginRequest {
+  idToken?: string;
+  authorizationCode?: string;
+  redirectUri?: string;
+  codeVerifier?: string;
+}
+
 export const authService = {
   login: async (email: string, password: string): Promise<LoginResponse> => {
     const response = await api.post<LoginResponse>('/auth/login', { email, password });
+    return response.data;
+  },
+
+  externalGoogleLogin: async (payload: ExternalGoogleLoginRequest): Promise<LoginResponse> => {
+    const response = await api.post<LoginResponse>('/auth/external/google', payload);
     return response.data;
   },
 

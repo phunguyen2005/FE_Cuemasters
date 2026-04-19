@@ -29,8 +29,16 @@ Hệ thống giúp quản lý đặt bàn, thanh toán và theo dõi trạng th�
      cp .env.example .env
      ```
    - Cập nhật `VITE_API_URL` trỏ về backend API của bạn.
+   - Cập nhật Google OAuth:
+     - `VITE_GOOGLE_CLIENT_ID`
+     - `VITE_GOOGLE_REDIRECT_URI` (mặc định `http://localhost:3000/auth/google/callback`)
 
-4. **Chạy ứng dụng (Development):**
+4. **Cấu hình Google Cloud Console:**
+   - Tạo OAuth Client loại **Web application**.
+   - Thêm Authorized JavaScript origins: `http://localhost:3000`
+   - Thêm Authorized redirect URIs: `http://localhost:3000/auth/google/callback`
+
+5. **Chạy ứng dụng (Development):**
    ```bash
    npm run dev
    ```

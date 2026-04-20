@@ -1,31 +1,38 @@
-import { GoogleLogin, type CredentialResponse } from '@react-oauth/google';
+import { useState } from 'react';
 import { Globe } from 'lucide-react';
 import { isGoogleAuthConfigured } from '../../config/googleAuth';
+import { createGoogleAuthorizationUrl } from '../../utils/googleOAuth';
 
 interface GoogleAuthButtonProps {
   label: string;
   unavailableMessage: string;
-  text: 'signin_with' | 'signup_with' | 'continue_with';
   disabled?: boolean;
-  onCredential: (idToken: string) => void | Promise<void>;
-  onError: () => void;
+  onError: (message?: string) => void;
 }
 
 export default function GoogleAuthButton({
   label,
   unavailableMessage,
-  text,
   disabled = false,
-  onCredential,
   onError,
 }: GoogleAuthButtonProps) {
-  const handleSuccess = (credentialResponse: CredentialResponse) => {
-    if (!credentialResponse.credential) {
-      onError();
+  const [isRedirecting, setIsRedirecting] = useState(false);
+  const isDisabled = disabled || isRedirecting;
+
+  const handleClick = async () => {
+    if (isDisabled || !isGoogleAuthConfigured) {
       return;
     }
 
-    void onCredential(credentialResponse.credential);
+    setIsRedirecting(true);
+
+    try {
+      const authorizationUrl = await createGoogleAuthorizationUrl();
+      window.location.assign(authorizationUrl);
+    } catch (error) {
+      setIsRedirecting(false);
+      onError(error instanceof Error ? error.message : unavailableMessage);
+    }
   };
 
   if (!isGoogleAuthConfigured) {
@@ -44,20 +51,15 @@ export default function GoogleAuthButton({
   }
 
   return (
-    <div
-      className={`flex min-h-[44px] w-full justify-center ${disabled ? 'pointer-events-none opacity-60' : ''}`}
-      aria-busy={disabled || undefined}
+    <button
+      className="flex min-h-[44px] w-full items-center justify-center gap-3 rounded-full border border-outline-variant/50 bg-surface-container-low py-4 font-bold text-on-surface transition-all duration-300 hover:border-primary/40 hover:text-primary disabled:cursor-not-allowed disabled:opacity-60"
+      type="button"
+      disabled={isDisabled}
+      onClick={handleClick}
+      aria-busy={isDisabled || undefined}
     >
-      <GoogleLogin
-        onSuccess={handleSuccess}
-        onError={onError}
-        text={text}
-        theme="outline"
-        size="large"
-        shape="pill"
-        logo_alignment="left"
-        width={240}
-      />
-    </div>
+      <Globe className="h-5 w-5 text-secondary" />
+      <span>{label}</span>
+    </button>
   );
 }

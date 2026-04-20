@@ -9,17 +9,87 @@ import {
   TableType,
 } from '../types';
 
+const createReservationInFlight = new Map<string, Promise<CreateBookingResponse>>();
+const createReservationConflictUntil = new Map<string, { message: string; expiresAt: number }>();
+const CREATE_RESERVATION_CONFLICT_TTL_MS = 10_000;
+
+const getCreateReservationKey = (data: CreateBookingRequest) =>
+  JSON.stringify({
+    requestedTableType: data.requestedTableType,
+    bookingDate: data.bookingDate,
+    startTime: data.startTime,
+    endTime: data.endTime,
+    method: data.method ?? null,
+    fnBOrders: data.fnBOrders ?? [],
+  });
+
+const getApiErrorMessage = (error: unknown, fallback: string) => {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    (typeof (error as any).response?.data?.message === 'string' ||
+      typeof (error as any).response?.data?.Message === 'string')
+  ) {
+    return (
+      (error as any).response?.data?.message ||
+      (error as any).response?.data?.Message ||
+      fallback
+    );
+  }
+
+  return fallback;
+};
+
 export const bookingService = {
   createBooking: async (data: CreateBookingRequest): Promise<CreateBookingResponse> => {
-    const response = await api.post<{ Message?: string; message?: string; ReservationId?: string; reservationId?: string }>(
-      '/reservations',
-      data,
-    );
+    const requestKey = getCreateReservationKey(data);
+    const recentConflict = createReservationConflictUntil.get(requestKey);
+    const now = Date.now();
 
-    return {
-      message: response.data.message || response.data.Message || 'Reservation created successfully.',
-      reservationId: response.data.reservationId || response.data.ReservationId,
-    };
+    if (recentConflict && recentConflict.expiresAt > now) {
+      throw new Error(recentConflict.message);
+    }
+
+    if (recentConflict) {
+      createReservationConflictUntil.delete(requestKey);
+    }
+
+    const existingRequest = createReservationInFlight.get(requestKey);
+    if (existingRequest) {
+      return existingRequest;
+    }
+
+    const request = api
+      .post<{ Message?: string; message?: string; ReservationId?: string; reservationId?: string }>(
+        '/reservations',
+        data,
+      )
+      .then((response) => ({
+        message: response.data.message || response.data.Message || 'Reservation created successfully.',
+        reservationId: response.data.reservationId || response.data.ReservationId,
+      }))
+      .catch((error) => {
+        if (
+          typeof error === 'object' &&
+          error !== null &&
+          'response' in error &&
+          (error as any).response?.status === 409
+        ) {
+          createReservationConflictUntil.set(requestKey, {
+            message: getApiErrorMessage(error, 'Reservation could not be created.'),
+            expiresAt: Date.now() + CREATE_RESERVATION_CONFLICT_TTL_MS,
+          });
+        }
+
+        throw error;
+      })
+      .finally(() => {
+        createReservationInFlight.delete(requestKey);
+      });
+
+    createReservationInFlight.set(requestKey, request);
+    return request;
   },
 
   getCategoryAvailability: async (tableType: TableType, date: string): Promise<CategoryAvailability> => {

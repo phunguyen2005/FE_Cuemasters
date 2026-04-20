@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import { ArrowLeft, Quote } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getDefaultRouteForRole } from '../hooks/useAuth';
@@ -18,12 +18,19 @@ export default function Login({ onNavigate }: ScreenProps) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [successMessage] = useState(locationState?.message || '');
   const login = useAuthStore((state) => state.login);
+  const submitInFlight = useRef(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitInFlight.current) {
+      return;
+    }
+
+    submitInFlight.current = true;
+    setIsSubmitting(true);
     setError('');
     try {
       const response = await authService.login(email, password);
@@ -45,36 +52,14 @@ export default function Login({ onNavigate }: ScreenProps) {
       }
 
       setError(getErrorMessage(err, 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'));
-    }
-  };
-
-  const handleGoogleCredential = async (idToken: string) => {
-    setError('');
-    setIsGoogleSubmitting(true);
-
-    try {
-      const response = await authService.externalGoogle(idToken);
-      login(
-        {
-          id: response.id,
-          email: response.email,
-          fullName: response.fullName,
-          role: response.role,
-        },
-        response.token,
-        response.refreshToken ?? null,
-      );
-      navigate(getDefaultRouteForRole(response.role));
-    } catch (err: any) {
-      setError(getErrorMessage(err, 'Không thể đăng nhập bằng Google. Vui lòng thử lại.'));
     } finally {
-      setIsGoogleSubmitting(false);
+      submitInFlight.current = false;
+      setIsSubmitting(false);
     }
   };
 
-  const handleGoogleError = () => {
-    setIsGoogleSubmitting(false);
-    setError('Không thể đăng nhập bằng Google. Vui lòng thử lại.');
+  const handleGoogleError = (message?: string) => {
+    setError(message || 'Không thể đăng nhập bằng Google. Vui lòng thử lại.');
   };
 
   const handleBackToHome = () => {
@@ -162,8 +147,9 @@ export default function Login({ onNavigate }: ScreenProps) {
           </div>
 
           <button
-            className="w-full rounded-full bg-primary py-4 font-bold tracking-[-0.01em] text-on-primary shadow-lg shadow-primary/10 transition-all duration-300 active:scale-95 hover:bg-primary-container"
+            className="w-full rounded-full bg-primary py-4 font-bold tracking-[-0.01em] text-on-primary shadow-lg shadow-primary/10 transition-all duration-300 active:scale-95 hover:bg-primary-container disabled:cursor-not-allowed disabled:opacity-60"
             type="submit"
+            disabled={isSubmitting}
           >
             Đăng nhập
           </button>
@@ -183,9 +169,7 @@ export default function Login({ onNavigate }: ScreenProps) {
         <GoogleAuthButton
           label="Tiếp tục với Google"
           unavailableMessage={googleSsoMessage}
-          text="continue_with"
-          disabled={isGoogleSubmitting}
-          onCredential={handleGoogleCredential}
+          disabled={isSubmitting}
           onError={handleGoogleError}
         />
 

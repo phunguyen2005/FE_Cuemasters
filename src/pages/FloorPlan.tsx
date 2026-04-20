@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { addDays, addMinutes, format } from 'date-fns';
 import CustomerLayout from '../components/layout/CustomerLayout';
 import { useSignalR } from '../hooks/useSignalR';
@@ -103,9 +103,11 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
     'Cash',
   );
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
+  const [lastConflictKey, setLastConflictKey] = useState<string | null>(null);
   const [categoryRates, setCategoryRates] = useState<Record<TableType, number>>(
     DEFAULT_CATEGORY_RATES,
   );
+  const bookingInFlight = useRef(false);
 
   useSignalR({
     floorPlanDate: selectedDate,
@@ -167,15 +169,38 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
     )}`;
   }, [orderedSelectedSlots]);
 
+  const currentReservationKey = useMemo(() => {
+    if (!selectedCategory || orderedSelectedSlots.length === 0) {
+      return null;
+    }
+
+    const startSlot = orderedSelectedSlots[0].slice(0, 5);
+    const endSlot = orderedSelectedSlots[orderedSelectedSlots.length - 1];
+    const endTime = format(addMinutes(new Date(`1970-01-01T${endSlot}`), 30), 'HH:mm');
+
+    return [
+      selectedCategory,
+      format(selectedDate, 'yyyy-MM-dd'),
+      startSlot,
+      endTime,
+      paymentMethod,
+    ].join('|');
+  }, [orderedSelectedSlots, paymentMethod, selectedCategory, selectedDate]);
+
+  const isCurrentReservationConflict =
+    currentReservationKey !== null && currentReservationKey === lastConflictKey;
+
   const handleSelectCategory = (type: TableType) => {
     setBookingError('');
     setBookingSuccess('');
+    setLastConflictKey(null);
     setSelectedCategory(type);
   };
 
   const handleSelectDate = (date: Date) => {
     setBookingError('');
     setBookingSuccess('');
+    setLastConflictKey(null);
     setSelectedDate(date);
   };
 
@@ -209,11 +234,22 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
 
     setBookingError('');
     setBookingSuccess('');
+    setLastConflictKey(null);
     toggleSlot(slot.startTime);
+  };
+
+  const handleSelectPaymentMethod = (method: Extract<PaymentMethod, 'Cash' | 'PayPal'>) => {
+    setBookingError('');
+    setBookingSuccess('');
+    setLastConflictKey(null);
+    setPaymentMethod(method);
   };
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (bookingInFlight.current || isSubmittingPayment || isBookingLoading) {
+      return;
+    }
 
     if (!isAuthenticated) {
       setBookingSuccess('');
@@ -240,12 +276,19 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
       return;
     }
 
+    if (isCurrentReservationConflict) {
+      setBookingSuccess('');
+      setBookingError('Luot dat nay vua bi tu choi. Vui long doi ngay, khung gio hoac loai ban truoc khi thu lai.');
+      return;
+    }
+
     const startSlotStr = orderedSelectedSlots[0];
     const endSlotStr = orderedSelectedSlots[orderedSelectedSlots.length - 1];
     const endTimeObj = addMinutes(new Date(`1970-01-01T${endSlotStr}`), 30);
 
     setBookingError('');
     setBookingSuccess('');
+    bookingInFlight.current = true;
     setIsSubmittingPayment(true);
     const paymentWindow =
       paymentMethod === 'PayPal' ? createExternalPaymentWindow() : null;
@@ -256,12 +299,21 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
         bookingDate: format(selectedDate, 'yyyy-MM-dd'),
         startTime: startSlotStr.slice(0, 5),
         endTime: format(endTimeObj, 'HH:mm'),
+        method: paymentMethod,
         fnBOrders: [],
       });
 
       const reservationId = response.reservationId || response.bookingId;
       if (!reservationId) {
         throw new Error('Không tìm thấy mã lượt đặt bàn vừa tạo.');
+      }
+
+      if (paymentMethod === 'Cash') {
+        closeExternalPaymentWindow(paymentWindow);
+        setBookingSuccess(response.message);
+        clearBooking();
+        onNavigate('bookingHistory');
+        return;
       }
 
       const paymentResult = await paymentService.createPayment(reservationId, paymentMethod);
@@ -284,10 +336,21 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
       onNavigate('bookingHistory');
     } catch (error) {
       closeExternalPaymentWindow(paymentWindow);
+      if (
+        typeof error === 'object' &&
+        error !== null &&
+        'response' in error &&
+        (error as any).response?.status === 409 &&
+        currentReservationKey
+      ) {
+        setLastConflictKey(currentReservationKey);
+      }
+
       setBookingError(
         getErrorMessage(error, 'Không thể tạo lượt đặt lúc này. Vui lòng thử lại sau.'),
       );
     } finally {
+      bookingInFlight.current = false;
       setIsSubmittingPayment(false);
     }
   };
@@ -549,7 +612,7 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
                 <div className="grid grid-cols-2 gap-3">
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('Cash')}
+                    onClick={() => handleSelectPaymentMethod('Cash')}
                     className={`rounded-xl border px-4 py-3 text-sm font-bold transition-colors ${
                       paymentMethod === 'Cash'
                         ? 'border-primary bg-primary text-on-primary'
@@ -560,7 +623,7 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
                   </button>
                   <button
                     type="button"
-                    onClick={() => setPaymentMethod('PayPal')}
+                    onClick={() => handleSelectPaymentMethod('PayPal')}
                     className={`rounded-xl border px-4 py-3 text-sm font-bold transition-colors ${
                       paymentMethod === 'PayPal'
                         ? 'border-primary bg-primary text-on-primary'
@@ -597,7 +660,8 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
                     !selectedCategory ||
                     orderedSelectedSlots.length === 0 ||
                     isBookingLoading ||
-                    isSubmittingPayment
+                    isSubmittingPayment ||
+                    isCurrentReservationConflict
                   }
                 >
                   {isBookingLoading || isSubmittingPayment

@@ -363,6 +363,7 @@ export interface CreateBookingRequest {
   bookingDate: string;
   startTime: string;
   endTime: string;
+  method?: PaymentMethod;
   fnBOrders?: CreateFnBOrderRequest[];
 }
 

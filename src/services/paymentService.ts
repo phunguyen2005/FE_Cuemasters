@@ -11,4 +11,9 @@ export const paymentService = {
     api
       .post<Payment>('/payments/paypal/capture', { payPalOrderId })
       .then((response) => response.data),
+
+  cancelPayPalPayment: (payPalOrderId: string) =>
+    api
+      .post('/payments/paypal/cancel', { payPalOrderId })
+      .then((response) => response.data),
 };

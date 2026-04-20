@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Screen, ScreenProps } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
 import { authService } from '../../services/authService';
@@ -18,6 +19,7 @@ const navItems: { screen: Screen; label: string; requiresAuth?: boolean }[] = [
 export default function Header({ onNavigate, activeScreen }: HeaderProps) {
   const logout = useAuthStore((state) => state.logout);
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const navigate = useNavigate();
 
   const visibleNavItems = navItems.filter((item) => !item.requiresAuth || isAuthenticated);
 
@@ -28,6 +30,7 @@ export default function Header({ onNavigate, activeScreen }: HeaderProps) {
       // ignore network errors; still clear client state
     }
     logout();
+    navigate('/');
   };
 
   return (

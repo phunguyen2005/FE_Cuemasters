@@ -10,6 +10,11 @@ import { tableService } from '../services/tableService';
 import { paymentService } from '../services/paymentService';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getTableTypeLabel } from '../utils/labels';
+import {
+  closeExternalPaymentWindow,
+  createExternalPaymentWindow,
+  redirectToExternalPayment,
+} from '../utils/paymentRedirect';
 
 const THIRTY_MINUTES_IN_MS = 30 * 60 * 1000;
 const DEPOSIT_AMOUNT = 50000;
@@ -242,6 +247,8 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
     setBookingError('');
     setBookingSuccess('');
     setIsSubmittingPayment(true);
+    const paymentWindow =
+      paymentMethod === 'PayPal' ? createExternalPaymentWindow() : null;
 
     try {
       const response = await createBooking({
@@ -267,14 +274,16 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
           sessionStorage.setItem('pendingPayPalOrderId', paymentResult.payPalOrderId);
         }
         sessionStorage.setItem('pendingReservationId', reservationId);
-        window.location.href = paymentResult.approvalUrl;
+        redirectToExternalPayment(paymentResult.approvalUrl, paymentWindow);
         return;
       }
 
+      closeExternalPaymentWindow(paymentWindow);
       setBookingSuccess(response.message || 'Đặt bàn thành công.');
       clearBooking();
       onNavigate('bookingHistory');
     } catch (error) {
+      closeExternalPaymentWindow(paymentWindow);
       setBookingError(
         getErrorMessage(error, 'Không thể tạo lượt đặt lúc này. Vui lòng thử lại sau.'),
       );

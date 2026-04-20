@@ -1,14 +1,17 @@
 import React, { useState } from 'react';
-import { ArrowLeft, ArrowRight, Flag, Globe } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Flag } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { ScreenProps } from '../types';
 import { authService } from '../services/authService';
+import { getDefaultRouteForRole } from '../hooks/useAuth';
+import { useAuthStore } from '../stores/authStore';
+import GoogleAuthButton from '../components/auth/GoogleAuthButton';
 
 const getErrorMessage = (error: any, fallback: string) =>
   error?.response?.data?.message || error?.response?.data?.Message || fallback;
 
 export default function Register({ onNavigate }: ScreenProps) {
-  const googleSsoMessage = 'Đăng ký bằng Google sẽ sớm được hỗ trợ.';
+  const googleSsoMessage = 'Chưa cấu hình Google Client ID.';
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -16,6 +19,8 @@ export default function Register({ onNavigate }: ScreenProps) {
   const [fullName, setFullName] = useState('');
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
+  const login = useAuthStore((state) => state.login);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +41,35 @@ export default function Register({ onNavigate }: ScreenProps) {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleGoogleCredential = async (idToken: string) => {
+    setError('');
+    setIsGoogleSubmitting(true);
+
+    try {
+      const response = await authService.externalGoogle(idToken);
+      login(
+        {
+          id: response.id,
+          email: response.email,
+          fullName: response.fullName,
+          role: response.role,
+        },
+        response.token,
+        response.refreshToken ?? null,
+      );
+      navigate(getDefaultRouteForRole(response.role));
+    } catch (err: any) {
+      setError(getErrorMessage(err, 'Không thể đăng ký bằng Google. Vui lòng thử lại.'));
+    } finally {
+      setIsGoogleSubmitting(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setIsGoogleSubmitting(false);
+    setError('Không thể đăng ký bằng Google. Vui lòng thử lại.');
   };
 
   const handleBackToLogin = () => {
@@ -227,16 +261,14 @@ export default function Register({ onNavigate }: ScreenProps) {
             <div className="flex-grow border-t border-outline-variant/30"></div>
           </div>
 
-          <button
-            className="flex w-full items-center justify-center gap-3 rounded-full border border-outline-variant/50 bg-white py-4 font-body font-semibold text-on-surface transition-all disabled:cursor-not-allowed disabled:opacity-60"
-            type="button"
-            disabled
-            title={googleSsoMessage}
-            aria-label={googleSsoMessage}
-          >
-            <Globe className="h-5 w-5 text-secondary" />
-            <span>Đăng ký với Google</span>
-          </button>
+          <GoogleAuthButton
+            label="Đăng ký với Google"
+            unavailableMessage={googleSsoMessage}
+            text="signup_with"
+            disabled={isGoogleSubmitting}
+            onCredential={handleGoogleCredential}
+            onError={handleGoogleError}
+          />
         </form>
 
         <div className="mt-10 text-center">

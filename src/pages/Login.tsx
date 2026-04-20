@@ -1,26 +1,26 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Quote, Globe, Loader2 } from 'lucide-react';
+import { ArrowLeft, Quote } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { getDefaultRouteForRole } from '../hooks/useAuth';
 import { ScreenProps } from '../types';
 import { authService } from '../services/authService';
 import { useAuthStore } from '../stores/authStore';
-import { createGoogleAuthorizationUrl, getGoogleClientId } from '../utils/googleOAuth';
+import GoogleAuthButton from '../components/auth/GoogleAuthButton';
+
+const getErrorMessage = (error: any, fallback: string) =>
+  error?.response?.data?.message || error?.response?.data?.Message || fallback;
 
 export default function Login({ onNavigate }: ScreenProps) {
+  const googleSsoMessage = 'Chưa cấu hình Google Client ID.';
   const navigate = useNavigate();
   const location = useLocation();
   const locationState = location.state as { message?: string } | null;
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isGoogleSubmitting, setIsGoogleSubmitting] = useState(false);
   const [successMessage] = useState(locationState?.message || '');
   const login = useAuthStore((state) => state.login);
-  const googleConfigured = !!getGoogleClientId();
-  const googleSsoMessage = googleConfigured
-    ? 'Đăng nhập bằng tài khoản Google.'
-    : 'Thiếu VITE_GOOGLE_CLIENT_ID trong cấu hình frontend.';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,29 +44,41 @@ export default function Login({ onNavigate }: ScreenProps) {
         return;
       }
 
-      setError(err.response?.data?.message || 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.');
+      setError(getErrorMessage(err, 'Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.'));
     }
+  };
+
+  const handleGoogleCredential = async (idToken: string) => {
+    setError('');
+    setIsGoogleSubmitting(true);
+
+    try {
+      const response = await authService.externalGoogle(idToken);
+      login(
+        {
+          id: response.id,
+          email: response.email,
+          fullName: response.fullName,
+          role: response.role,
+        },
+        response.token,
+        response.refreshToken ?? null,
+      );
+      navigate(getDefaultRouteForRole(response.role));
+    } catch (err: any) {
+      setError(getErrorMessage(err, 'Không thể đăng nhập bằng Google. Vui lòng thử lại.'));
+    } finally {
+      setIsGoogleSubmitting(false);
+    }
+  };
+
+  const handleGoogleError = () => {
+    setIsGoogleSubmitting(false);
+    setError('Không thể đăng nhập bằng Google. Vui lòng thử lại.');
   };
 
   const handleBackToHome = () => {
     navigate('/');
-  };
-
-  const handleGoogleSignIn = async () => {
-    setError('');
-    if (!googleConfigured) {
-      setError('Google login chưa được cấu hình. Thiếu VITE_GOOGLE_CLIENT_ID.');
-      return;
-    }
-
-    try {
-      setIsGoogleLoading(true);
-      const authorizationUrl = await createGoogleAuthorizationUrl();
-      window.location.assign(authorizationUrl);
-    } catch {
-      setIsGoogleLoading(false);
-      setError('Không thể khởi tạo đăng nhập Google. Vui lòng thử lại.');
-    }
   };
 
   return (
@@ -168,21 +180,14 @@ export default function Login({ onNavigate }: ScreenProps) {
           </div>
         </div>
 
-        <button
-          className="flex w-full items-center justify-center gap-3 rounded-full border border-outline-variant/20 bg-surface-container-low py-4 font-bold tracking-[-0.01em] text-on-surface transition-all duration-300 disabled:cursor-not-allowed disabled:opacity-60"
-          type="button"
-          onClick={() => void handleGoogleSignIn()}
-          disabled={isGoogleLoading || !googleConfigured}
-          title={googleSsoMessage}
-          aria-label={googleSsoMessage}
-        >
-          {isGoogleLoading ? (
-            <Loader2 className="h-5 w-5 animate-spin text-secondary" />
-          ) : (
-            <Globe className="h-5 w-5 text-secondary" />
-          )}
-          <span>{isGoogleLoading ? 'Đang chuyển hướng...' : 'Tiếp tục với Google'}</span>
-        </button>
+        <GoogleAuthButton
+          label="Tiếp tục với Google"
+          unavailableMessage={googleSsoMessage}
+          text="continue_with"
+          disabled={isGoogleSubmitting}
+          onCredential={handleGoogleCredential}
+          onError={handleGoogleError}
+        />
 
         <p className="mt-12 text-center text-sm text-secondary">
           Chưa có tài khoản?

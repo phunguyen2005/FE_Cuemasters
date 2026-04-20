@@ -48,6 +48,7 @@ api.interceptors.response.use(
       if (
         requestUrl.includes('/auth/refresh-token') ||
         requestUrl.includes('/auth/login') ||
+        requestUrl.includes('/auth/external/google') ||
         requestUrl.includes('/auth/register') ||
         requestUrl.includes('/auth/active')
       ) {

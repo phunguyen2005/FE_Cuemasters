@@ -39,6 +39,14 @@ export const authService = {
     return response.data;
   },
 
+  externalGoogle: async (idToken: string): Promise<LoginResponse> => {
+    const response = await api.post<LoginResponse>('/auth/external/google', {
+      idToken,
+      provider: 'google',
+    });
+    return response.data;
+  },
+
   sendOtp: async (email: string) => {
     const response = await api.post('/auth/send-otp', { email });
     return response.data;

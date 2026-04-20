@@ -336,19 +336,26 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
       onNavigate('bookingHistory');
     } catch (error) {
       closeExternalPaymentWindow(paymentWindow);
-      if (
+      const isConflictError =
         typeof error === 'object' &&
         error !== null &&
         'response' in error &&
-        (error as any).response?.status === 409 &&
-        currentReservationKey
-      ) {
+        (error as any).response?.status === 409;
+      const errorMessage = getErrorMessage(
+        error,
+        'Không thể tạo lượt đặt lúc này. Vui lòng thử lại sau.',
+      );
+      const normalizedErrorMessage = errorMessage.toLowerCase();
+      const isBlockingReservationMessage =
+        normalizedErrorMessage.includes('confirmed') ||
+        normalizedErrorMessage.includes('checked') ||
+        normalizedErrorMessage.includes('pending paid');
+
+      if (isConflictError && currentReservationKey && !isBlockingReservationMessage) {
         setLastConflictKey(currentReservationKey);
       }
 
-      setBookingError(
-        getErrorMessage(error, 'Không thể tạo lượt đặt lúc này. Vui lòng thử lại sau.'),
-      );
+      setBookingError(errorMessage);
     } finally {
       bookingInFlight.current = false;
       setIsSubmittingPayment(false);

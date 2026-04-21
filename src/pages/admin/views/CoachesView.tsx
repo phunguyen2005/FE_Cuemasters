@@ -1,11 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import {
   Plus,
-  MoreVertical,
   Edit,
   AlertCircle,
   CheckCircle2,
-  Star,
   Users,
   Calendar,
   Trash2,
@@ -24,7 +22,6 @@ interface CoachRecord {
   hourlyRate: number;
   photoUrl?: string;
   isActive: boolean;
-  rating?: number;
   totalSessions?: number;
 }
 
@@ -100,18 +97,7 @@ export const CoachesView = () => {
 
   const totalCoaches = coaches.length;
   const activeCoaches = coaches.filter((coach) => coach.isActive).length;
-  const avgRating = totalCoaches
-    ? (
-        coaches.reduce((sum, coach) => sum + (Number(coach.rating) || 0), 0) / totalCoaches
-      ).toFixed(1)
-    : '0';
   const totalSessions = coaches.reduce((sum, coach) => sum + (coach.totalSessions ?? 0), 0);
-  const featuredCoach =
-    coaches.length > 0
-      ? coaches.reduce((best, coach) =>
-          (Number(coach.rating) || 0) > (Number(best.rating) || 0) ? coach : best,
-        )
-      : null;
 
   const openCreate = () => {
     setFormData(initialForm);
@@ -249,7 +235,7 @@ export const CoachesView = () => {
         </div>
       )}
 
-      <div className="grid grid-cols-4 gap-6">
+      <div className="grid grid-cols-3 gap-6">
         {[
           {
             label: 'Tổng số HLV',
@@ -264,13 +250,6 @@ export const CoachesView = () => {
             icon: CheckCircle2,
             color: 'text-tertiary',
             bg: 'bg-teal-50',
-          },
-          {
-            label: 'Đánh giá TB',
-            value: `${avgRating}/5`,
-            icon: Star,
-            color: 'text-amber-500',
-            bg: 'bg-amber-50',
           },
           {
             label: 'Số buổi dạy',
@@ -299,8 +278,8 @@ export const CoachesView = () => {
         ))}
       </div>
 
-      <div className="grid grid-cols-3 gap-6">
-        <div className="col-span-2 overflow-hidden rounded-2xl border border-neutral-100 bg-surface-lowest shadow-sm">
+      <div className="grid grid-cols-1 gap-6">
+        <div className="overflow-hidden rounded-2xl border border-neutral-100 bg-surface-lowest shadow-sm">
           <div className="flex items-center justify-between border-b border-neutral-100 p-6">
             <h3 className="font-headline text-lg font-bold">Danh sách huấn luyện viên</h3>
             <button
@@ -316,7 +295,6 @@ export const CoachesView = () => {
                 <tr>
                   <th className="p-4 font-medium">HLV</th>
                   <th className="p-4 font-medium">Chuyên môn</th>
-                  <th className="p-4 font-medium">Đánh giá</th>
                   <th className="p-4 font-medium">Phí / giờ</th>
                   <th className="p-4 font-medium">Trạng thái</th>
                   <th className="p-4 text-right font-medium">Thao tác</th>
@@ -325,7 +303,7 @@ export const CoachesView = () => {
               <tbody className="text-sm">
                 {isLoading ? (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-neutral-400">
+                    <td colSpan={5} className="p-8 text-center text-neutral-400">
                       Đang tải danh sách huấn luyện viên...
                     </td>
                   </tr>
@@ -352,15 +330,6 @@ export const CoachesView = () => {
                         <span className="inline-flex items-center rounded bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-600">
                           {getCoachSpecialtyLabel(coach.specialty)}
                         </span>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-1 font-medium text-neutral-900">
-                          <Star size={14} className="fill-amber-400 text-amber-400" />
-                          {Number(coach.rating || 0).toFixed(1)}{' '}
-                          <span className="font-normal text-neutral-400">
-                            ({coach.totalSessions ?? 0})
-                          </span>
-                        </div>
                       </td>
                       <td className="p-4 font-medium">
                         {coach.hourlyRate?.toLocaleString()}đ
@@ -410,7 +379,7 @@ export const CoachesView = () => {
                   ))
                 ) : (
                   <tr>
-                    <td colSpan={6} className="p-8 text-center text-neutral-400">
+                    <td colSpan={5} className="p-8 text-center text-neutral-400">
                       Chưa có huấn luyện viên nào.
                     </td>
                   </tr>
@@ -420,60 +389,6 @@ export const CoachesView = () => {
           </div>
         </div>
 
-        <div className="flex flex-col items-center rounded-2xl border border-neutral-100 bg-surface-lowest p-6 text-center shadow-sm">
-          <div className="mb-6 flex w-full items-start justify-between">
-            <span className="flex items-center gap-1 text-xs font-bold uppercase tracking-wider text-amber-500">
-              <Star size={12} className="fill-amber-500" /> HLV nổi bật
-            </span>
-            <button
-              type="button"
-              className="text-neutral-400 hover:text-neutral-900"
-              aria-label="Tùy chọn huấn luyện viên nổi bật"
-              title="Tùy chọn"
-            >
-              <MoreVertical size={16} />
-            </button>
-          </div>
-          {featuredCoach ? (
-            <>
-              <div className="relative mb-4">
-                <img
-                  src={featuredCoach.photoUrl || DEFAULT_AVATAR}
-                  alt={featuredCoach.fullName}
-                  className="h-24 w-24 rounded-full border-4 border-white object-cover shadow-sm"
-                />
-                <div className="absolute -bottom-2 -right-2 flex h-8 w-8 items-center justify-center rounded-full border-2 border-white bg-tertiary text-white shadow-sm">
-                  <CheckCircle2 size={14} />
-                </div>
-              </div>
-              <h4 className="font-headline text-xl font-bold">{featuredCoach.fullName}</h4>
-              <p className="mb-4 text-sm text-neutral-500">
-                Chuyên môn: {getCoachSpecialtyLabel(featuredCoach.specialty)}
-              </p>
-              <p className="mb-6 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                Hệ thống sẽ tạo mật khẩu tạm cho tài khoản mới. Sau khi tạo, vui lòng gửi hướng
-                dẫn đổi mật khẩu cho huấn luyện viên.
-              </p>
-
-              <div className="mt-auto grid w-full grid-cols-2 gap-4 border-t border-neutral-100 pt-6">
-                <div>
-                  <p className="mb-1 text-xs text-neutral-400">Đánh giá</p>
-                  <p className="text-lg font-bold">
-                    {Number(featuredCoach.rating || 0).toFixed(1)}
-                  </p>
-                </div>
-                <div>
-                  <p className="mb-1 text-xs text-neutral-400">Buổi dạy</p>
-                  <p className="text-lg font-bold">{featuredCoach.totalSessions ?? 0}</p>
-                </div>
-              </div>
-            </>
-          ) : (
-            <div className="py-10 text-sm text-neutral-500">
-              Chưa có dữ liệu huấn luyện viên.
-            </div>
-          )}
-        </div>
       </div>
 
       <AdminModal

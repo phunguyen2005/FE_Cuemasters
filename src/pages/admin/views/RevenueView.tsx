@@ -1,7 +1,12 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { TrendingDown, TrendingUp } from 'lucide-react';
+import { Eye, TrendingDown, TrendingUp, X } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
-import { AdminAnalytics, AdminDashboardStats } from '../../../types';
+import {
+  AdminAnalytics,
+  AdminDashboardStats,
+  AdminInvoiceListResponse,
+  InvoiceDetail,
+} from '../../../types';
 
 type RevenueStructureItem = {
   label: string;
@@ -161,6 +166,23 @@ const getErrorMessage = (error: unknown, fallbackMessage: string) => {
   return fallbackMessage;
 };
 
+const formatCurrency = (value: number | null | undefined) =>
+  `${Number(value || 0).toLocaleString()}đ`;
+
+const formatDateTime = (value?: string | null) => {
+  if (!value) return '--';
+  return new Date(value).toLocaleString('vi-VN', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+};
+
+const formatDateRange = (start?: string | null, end?: string | null) =>
+  `${formatDateTime(start)} - ${formatDateTime(end)}`;
+
 export const RevenueView = () => {
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
   const [analytics, setAnalytics] = useState<AdminAnalytics | null>(null);
@@ -171,21 +193,34 @@ export const RevenueView = () => {
   );
   const [basis, setBasis] = useState<'service' | 'payment'>('service');
   const [customRange, setCustomRange] = useState({ from: '', to: '' });
+  const [invoiceData, setInvoiceData] = useState<AdminInvoiceListResponse | null>(null);
+  const [isInvoiceLoading, setIsInvoiceLoading] = useState(false);
+  const [invoiceError, setInvoiceError] = useState('');
+  const [invoiceSearch, setInvoiceSearch] = useState('');
+  const [invoicePage, setInvoicePage] = useState(1);
+  const [invoicePageSize, setInvoicePageSize] = useState(10);
+  const [selectedInvoice, setSelectedInvoice] = useState<InvoiceDetail | null>(null);
+  const [isInvoiceDetailLoading, setIsInvoiceDetailLoading] = useState(false);
+  const [invoiceDetailError, setInvoiceDetailError] = useState('');
+
+  const activeRange = useMemo(
+    () => getRangeForFilter(dateFilter, customRange),
+    [customRange, dateFilter],
+  );
 
   useEffect(() => {
-    const range = getRangeForFilter(dateFilter, customRange);
-    if (!range) {
+    if (!activeRange) {
       return;
     }
 
     setIsLoading(true);
 
     Promise.all([
-      adminService.getStats({ from: range.from, to: range.to }),
+      adminService.getStats({ from: activeRange.from, to: activeRange.to }),
       adminService.getAnalytics({
-        from: range.from,
-        to: range.to,
-        period: range.period,
+        from: activeRange.from,
+        to: activeRange.to,
+        period: activeRange.period,
         basis,
       }),
     ])
@@ -200,7 +235,53 @@ export const RevenueView = () => {
       .finally(() => {
         setIsLoading(false);
       });
-  }, [basis, customRange, dateFilter]);
+  }, [activeRange, basis]);
+
+  useEffect(() => {
+    setInvoicePage(1);
+  }, [activeRange, basis, invoicePageSize, invoiceSearch]);
+
+  useEffect(() => {
+    if (!activeRange) {
+      return;
+    }
+
+    setIsInvoiceLoading(true);
+    adminService
+      .getInvoices({
+        from: activeRange.from,
+        to: activeRange.to,
+        basis,
+        page: invoicePage,
+        pageSize: invoicePageSize,
+        search: invoiceSearch.trim() || undefined,
+      })
+      .then((data) => {
+        setInvoiceData(data);
+        setInvoiceError('');
+      })
+      .catch((loadError) => {
+        setInvoiceError(getErrorMessage(loadError, 'Không thể tải lịch sử hóa đơn lúc này.'));
+      })
+      .finally(() => {
+        setIsInvoiceLoading(false);
+      });
+  }, [activeRange, basis, invoicePage, invoicePageSize, invoiceSearch]);
+
+  const openInvoiceDetail = async (invoiceId: string) => {
+    setSelectedInvoice(null);
+    setInvoiceDetailError('');
+    setIsInvoiceDetailLoading(true);
+
+    try {
+      const invoice = await adminService.getInvoice(invoiceId);
+      setSelectedInvoice(invoice);
+    } catch (detailError) {
+      setInvoiceDetailError(getErrorMessage(detailError, 'Không thể tải chi tiết hóa đơn.'));
+    } finally {
+      setIsInvoiceDetailLoading(false);
+    }
+  };
 
   const heatmapMatrix = useMemo(() => {
     if (!analytics?.occupancyHeatmap) return [];
@@ -568,6 +649,325 @@ export const RevenueView = () => {
           </div>
         </div>
       </div>
+
+      <div className="overflow-hidden rounded-2xl border border-neutral-100 bg-surface-lowest shadow-sm">
+        <div className="flex flex-col gap-4 border-b border-neutral-100 p-6 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <h3 className="font-headline text-lg font-bold">Lịch sử hóa đơn</h3>
+            <p className="mt-1 text-sm text-neutral-500">
+              Kiểm tra lại toàn bộ hóa đơn theo bộ lọc doanh thu hiện tại.
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <label htmlFor="invoiceSearch" className="sr-only">
+              Tìm hóa đơn
+            </label>
+            <input
+              id="invoiceSearch"
+              type="search"
+              value={invoiceSearch}
+              onChange={(event) => setInvoiceSearch(event.target.value)}
+              placeholder="Tìm khách, bàn, mã hóa đơn..."
+              className="w-72 rounded-lg border border-neutral-200 bg-surface-lowest px-3 py-2 text-sm outline-none focus:border-primary focus:ring-1 focus:ring-primary"
+            />
+            <label htmlFor="invoicePageSize" className="sr-only">
+              Số hóa đơn mỗi trang
+            </label>
+            <select
+              id="invoicePageSize"
+              value={invoicePageSize}
+              onChange={(event) => setInvoicePageSize(Number(event.target.value))}
+              className="rounded-lg border border-neutral-200 bg-surface-lowest px-3 py-2 text-sm"
+            >
+              <option value={10}>10 / trang</option>
+              <option value={20}>20 / trang</option>
+              <option value={50}>50 / trang</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left">
+            <thead className="bg-neutral-50/50 text-xs uppercase tracking-wider text-neutral-500">
+              <tr>
+                <th className="p-4 font-medium">Mã hóa đơn</th>
+                <th className="p-4 font-medium">Khách hàng</th>
+                <th className="p-4 font-medium">Bàn</th>
+                <th className="p-4 font-medium">Thời gian sử dụng</th>
+                <th className="p-4 font-medium">Thanh toán</th>
+                <th className="p-4 text-right font-medium">Tổng tiền</th>
+                <th className="p-4 text-right font-medium">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="text-sm">
+              {isInvoiceLoading ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-neutral-400">
+                    Đang tải lịch sử hóa đơn...
+                  </td>
+                </tr>
+              ) : invoiceError ? (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-error">
+                    {invoiceError}
+                  </td>
+                </tr>
+              ) : invoiceData?.items.length ? (
+                invoiceData.items.map((invoice) => (
+                  <tr
+                    key={invoice.id}
+                    className="border-b border-neutral-100 transition-colors hover:bg-neutral-50/50"
+                  >
+                    <td className="p-4 font-mono text-xs text-neutral-600">
+                      {invoice.id.slice(0, 8)}
+                    </td>
+                    <td className="p-4">
+                      <p className="font-medium text-neutral-900">{invoice.customerName}</p>
+                      <p className="text-xs text-neutral-500">
+                        {invoice.customerEmail || 'Khách vãng lai'}
+                      </p>
+                    </td>
+                    <td className="p-4">
+                      <span className="inline-flex items-center rounded bg-neutral-100 px-2 py-1 text-xs font-medium text-neutral-600">
+                        {invoice.tableNumber} / {invoice.tableType}
+                      </span>
+                    </td>
+                    <td className="p-4 text-neutral-600">
+                      {formatDateRange(invoice.serviceStartedAt, invoice.serviceEndedAt)}
+                    </td>
+                    <td className="p-4">
+                      <p className="font-medium text-neutral-900">
+                        {invoice.paymentMethod || '--'}
+                      </p>
+                      <p className="text-xs text-neutral-500">
+                        {invoice.paymentStatus || '--'} · {formatDateTime(invoice.paymentCompletedAt)}
+                      </p>
+                    </td>
+                    <td className="p-4 text-right font-bold text-neutral-900">
+                      {formatCurrency(invoice.grandTotal)}
+                    </td>
+                    <td className="p-4">
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => void openInvoiceDetail(invoice.id)}
+                          className="inline-flex items-center gap-2 rounded-lg border border-neutral-200 px-3 py-2 text-xs font-medium text-neutral-700 transition-colors hover:border-primary hover:text-primary"
+                        >
+                          <Eye size={14} />
+                          Xem
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={7} className="p-8 text-center text-neutral-400">
+                    Không có hóa đơn trong khoảng thời gian này.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        <div className="flex items-center justify-between border-t border-neutral-100 px-6 py-4 text-sm text-neutral-500">
+          <span>
+            {invoiceData
+              ? `${invoiceData.totalItems.toLocaleString()} hóa đơn`
+              : '0 hóa đơn'}
+          </span>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              disabled={invoicePage <= 1 || isInvoiceLoading}
+              onClick={() => setInvoicePage((page) => Math.max(1, page - 1))}
+              className="rounded-lg border border-neutral-200 px-3 py-1.5 font-medium text-neutral-700 transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Trước
+            </button>
+            <span className="px-2">
+              Trang {invoiceData?.page || invoicePage} / {invoiceData?.totalPages || 1}
+            </span>
+            <button
+              type="button"
+              disabled={
+                isInvoiceLoading ||
+                !invoiceData ||
+                invoicePage >= Math.max(1, invoiceData.totalPages)
+              }
+              onClick={() => setInvoicePage((page) => page + 1)}
+              className="rounded-lg border border-neutral-200 px-3 py-1.5 font-medium text-neutral-700 transition-colors hover:border-primary hover:text-primary disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Sau
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {(isInvoiceDetailLoading || selectedInvoice || invoiceDetailError) && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="max-h-[90vh] w-full max-w-5xl overflow-hidden rounded-2xl bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-neutral-100 px-6 py-4">
+              <div>
+                <h3 className="font-headline text-lg font-bold text-neutral-900">
+                  Chi tiết hóa đơn
+                </h3>
+                {selectedInvoice && (
+                  <p className="mt-1 font-mono text-xs text-neutral-500">
+                    {selectedInvoice.id}
+                  </p>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedInvoice(null);
+                  setInvoiceDetailError('');
+                }}
+                className="rounded-full p-2 text-neutral-400 transition-colors hover:bg-neutral-100 hover:text-neutral-900"
+                aria-label="Đóng chi tiết hóa đơn"
+                title="Đóng"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="max-h-[calc(90vh-76px)] overflow-y-auto p-6">
+              {isInvoiceDetailLoading ? (
+                <div className="py-10 text-center text-sm text-neutral-500">
+                  Đang tải chi tiết hóa đơn...
+                </div>
+              ) : invoiceDetailError ? (
+                <div className="rounded-xl border border-error/20 bg-error/5 px-4 py-3 text-sm text-error">
+                  {invoiceDetailError}
+                </div>
+              ) : selectedInvoice ? (
+                <div className="space-y-6">
+                  <div className="grid grid-cols-4 gap-4 rounded-xl border border-neutral-100 bg-neutral-50/60 p-4">
+                    <div>
+                      <p className="text-xs text-neutral-500">Khách hàng</p>
+                      <p className="mt-1 font-bold text-neutral-900">
+                        {selectedInvoice.customerName}
+                      </p>
+                      <p className="text-xs text-neutral-500">
+                        {selectedInvoice.customerEmail || selectedInvoice.guestName || 'Khách vãng lai'}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-500">Bàn</p>
+                      <p className="mt-1 font-bold text-neutral-900">
+                        {selectedInvoice.tableNumber} / {selectedInvoice.tableType}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-500">Thời gian</p>
+                      <p className="mt-1 font-bold text-neutral-900">
+                        {selectedInvoice.sessionDurationHours.toFixed(2)} giờ
+                      </p>
+                      <p className="text-xs text-neutral-500">
+                        {formatDateRange(selectedInvoice.serviceStartedAt, selectedInvoice.serviceEndedAt)}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-xs text-neutral-500">Tổng tiền</p>
+                      <p className="mt-1 font-headline text-xl font-bold text-primary">
+                        {formatCurrency(selectedInvoice.grandTotal)}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-4 gap-4">
+                    {[
+                      ['Tiền giờ chơi', selectedInvoice.tableTimeCost],
+                      ['F&B', selectedInvoice.fnBTotal],
+                      ['Huấn luyện viên', selectedInvoice.coachingTotal],
+                      ['Giảm giá', -selectedInvoice.discountAmount],
+                      ['Cọc đã trừ', -selectedInvoice.depositApplied],
+                      ['Còn phải thu', selectedInvoice.balanceDue],
+                    ].map(([label, amount]) => (
+                      <div
+                        key={label}
+                        className="rounded-xl border border-neutral-100 bg-surface-lowest p-4"
+                      >
+                        <p className="text-xs text-neutral-500">{label}</p>
+                        <p className="mt-1 font-bold text-neutral-900">
+                          {formatCurrency(Number(amount))}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div>
+                    <h4 className="mb-3 font-headline text-base font-bold">Dòng hóa đơn</h4>
+                    <div className="overflow-hidden rounded-xl border border-neutral-100">
+                      <table className="w-full text-left text-sm">
+                        <thead className="bg-neutral-50 text-xs uppercase tracking-wider text-neutral-500">
+                          <tr>
+                            <th className="p-3 font-medium">Loại</th>
+                            <th className="p-3 font-medium">Mô tả</th>
+                            <th className="p-3 text-right font-medium">Đơn giá</th>
+                            <th className="p-3 text-right font-medium">SL</th>
+                            <th className="p-3 text-right font-medium">Thành tiền</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {selectedInvoice.lines.map((line) => (
+                            <tr key={line.id} className="border-t border-neutral-100">
+                              <td className="p-3 text-neutral-500">{line.type}</td>
+                              <td className="p-3 font-medium text-neutral-900">
+                                {line.description}
+                              </td>
+                              <td className="p-3 text-right">{formatCurrency(line.unitPrice)}</td>
+                              <td className="p-3 text-right">{line.quantity.toFixed(2)}</td>
+                              <td className="p-3 text-right font-bold">
+                                {formatCurrency(line.total)}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h4 className="mb-3 font-headline text-base font-bold">Thanh toán</h4>
+                    <div className="space-y-2">
+                      {selectedInvoice.payments.length > 0 ? (
+                        selectedInvoice.payments.map((payment) => (
+                          <div
+                            key={payment.id}
+                            className="flex items-center justify-between rounded-xl border border-neutral-100 px-4 py-3 text-sm"
+                          >
+                            <div>
+                              <p className="font-bold text-neutral-900">
+                                {payment.method || '--'} / {payment.status}
+                              </p>
+                              <p className="text-xs text-neutral-500">
+                                {payment.type || '--'} · {formatDateTime(payment.completedAt)}
+                              </p>
+                              {payment.notes && (
+                                <p className="mt-1 text-xs text-neutral-500">{payment.notes}</p>
+                              )}
+                            </div>
+                            <p className="font-bold text-neutral-900">
+                              {formatCurrency(payment.amount)}
+                            </p>
+                          </div>
+                        ))
+                      ) : (
+                        <p className="rounded-xl border border-neutral-100 px-4 py-3 text-sm text-neutral-500">
+                          Chưa có bản ghi thanh toán.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

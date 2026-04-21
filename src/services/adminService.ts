@@ -3,6 +3,7 @@ import {
   AdminAnalytics,
   AdminBookingListResponse,
   AdminDashboardStats,
+  AdminInvoiceListResponse,
   AdminMembershipPlan,
   AdminTable,
   AdminUpsertMembershipPlanRequest,
@@ -10,6 +11,7 @@ import {
   BufferConfig,
   CheckoutSummary,
   FloorPlanSnapshot,
+  InvoiceDetail,
   LinkableCoachSession,
   PendingCheckin,
   RunningTotal,
@@ -25,6 +27,13 @@ interface DateRangeParams {
 interface AnalyticsParams extends DateRangeParams {
   period?: string;
   basis?: 'service' | 'payment';
+}
+
+interface InvoiceQueryParams extends DateRangeParams {
+  page?: number;
+  pageSize?: number;
+  basis?: 'service' | 'payment';
+  search?: string;
 }
 
 interface BookingQueryParams extends DateRangeParams {
@@ -73,6 +82,10 @@ export const adminService = {
     api.delete(`/admin/buffer-configs/${id}`).then((res) => res.data),
   getAnalytics: (params?: AnalyticsParams): Promise<AdminAnalytics> =>
     api.get('/admin/analytics', { params }).then((res) => res.data),
+  getInvoices: (params?: InvoiceQueryParams): Promise<AdminInvoiceListResponse> =>
+    api.get('/admin/invoices', { params }).then((res) => res.data),
+  getInvoice: (id: string): Promise<InvoiceDetail> =>
+    api.get(`/admin/invoices/${id}`).then((res) => res.data),
   updateBookingStatus: (id: string, status: 'Cancelled' | 'NoShow'): Promise<ApiMessageResponse> =>
     api.put(`/admin/bookings/${id}`, { status }).then((res) => res.data),
   checkinBooking: (id: string, data: { tableId: number }) =>

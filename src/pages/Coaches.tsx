@@ -162,16 +162,6 @@ export default function Coaches({ onNavigate }: ScreenProps) {
                       <h3 className="mb-2 font-headline text-2xl font-black tracking-tight">
                         {coach.fullName}
                       </h3>
-                      <div className="flex items-center gap-2 text-primary">
-                        <span className="material-symbols-outlined text-sm [font-variation-settings:'FILL'_1]">
-                          star
-                        </span>
-                        <span className="text-xs font-bold uppercase tracking-[0.18em] text-on-surface">
-                          {typeof coach.rating === 'number'
-                            ? coach.rating.toFixed(1)
-                            : 'Chưa có'}
-                        </span>
-                      </div>
                     </div>
 
                     <div className="text-right">

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Search, HelpCircle, Bell, LogOut } from 'lucide-react';
+import { Search, HelpCircle, LogOut } from 'lucide-react';
 import { useAuthStore } from '../../../stores/authStore';
 
 export const Topbar = ({ title }: { title: string }) => {
@@ -19,28 +19,19 @@ export const Topbar = ({ title }: { title: string }) => {
           />
           <input
             type="text"
-            placeholder="Tìm kiếm nhanh..."
+            placeholder="Tìm kiếm nhanh"
             className="w-64 rounded-lg border-transparent bg-neutral-100/70 py-2 pl-11 pr-4 text-[13px] transition-all focus:border-neutral-200 focus:bg-white focus:outline-none focus:ring-2 focus:ring-primary/10"
           />
         </div>
 
         <div className="flex items-center gap-4 text-neutral-500">
           <button
-            aria-label="Trợ giúp"
-            title="Trợ giúp"
+            aria-label="Tìm kiếm"
+            title="Tìm kiếm"
             type="button"
             className="transition-colors hover:text-primary"
           >
             <HelpCircle size={20} />
-          </button>
-          <button
-            aria-label="Thông báo"
-            title="Thông báo"
-            type="button"
-            className="relative transition-colors hover:text-primary"
-          >
-            <Bell size={20} />
-            <span className="absolute -right-1 -top-1 h-2 w-2 rounded-full bg-primary"></span>
           </button>
           <button
             title="Đăng xuất"

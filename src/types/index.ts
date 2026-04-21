@@ -134,7 +134,7 @@ export interface Coach {
   specialty: string;
   bio: string;
   hourlyRate: number;
-  rating: number;
+  totalSessions: number;
   avatarUrl: string;
   isActive?: boolean;
 }
@@ -254,11 +254,15 @@ export interface AdminUpsertMembershipPlanRequest {
 
 export interface Payment {
   id: string;
+  bookingId?: string;
+  reservationId?: string;
+  invoiceId?: string;
   amount: number;
   status: PaymentStatus;
   method?: string;
   type?: string;
   transactionId?: string;
+  notes?: string | null;
   createdAt?: string;
   completedAt?: string | null;
 }
@@ -495,6 +499,78 @@ export interface AdminAnalytics {
   peakHours: AdminPeakHour[];
   averageOccupancyRate: number;
   peakOccupancyRate: number;
+}
+
+export interface AdminInvoiceSummary {
+  id: string;
+  tableSessionId: string;
+  userId?: string | null;
+  customerName: string;
+  customerEmail?: string | null;
+  tableId: number;
+  tableNumber: string;
+  tableType: string;
+  serviceStartedAt: string;
+  serviceEndedAt: string;
+  paymentCompletedAt?: string | null;
+  tableTimeCost: number;
+  fnBTotal: number;
+  coachingTotal: number;
+  discountAmount: number;
+  depositApplied: number;
+  grandTotal: number;
+  balanceDue: number;
+  paymentAmount: number;
+  paymentMethod?: string | null;
+  paymentStatus?: string | null;
+  createdAt: string;
+}
+
+export interface AdminInvoiceListResponse {
+  items: AdminInvoiceSummary[];
+  totalItems: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
+}
+
+export interface InvoiceLine {
+  id: string;
+  type: string;
+  description: string;
+  unitPrice: number;
+  quantity: number;
+  total: number;
+}
+
+export interface InvoiceDetail {
+  id: string;
+  tableSessionId: string;
+  userId?: string | null;
+  customerName: string;
+  customerEmail?: string | null;
+  guestName?: string | null;
+  tableId: number;
+  tableNumber: string;
+  tableType: string;
+  serviceDate: string;
+  serviceStartedAt: string;
+  serviceEndedAt: string;
+  paymentCompletedAt?: string | null;
+  sessionDurationHours: number;
+  tableHourlyRateSnapshot: number;
+  tableTimeCost: number;
+  fnBTotal: number;
+  coachingTotal: number;
+  discountAmount: number;
+  membershipDiscountPercent: number;
+  membershipTierSnapshot?: string | null;
+  depositApplied: number;
+  grandTotal: number;
+  balanceDue: number;
+  createdAt: string;
+  lines: InvoiceLine[];
+  payments: Payment[];
 }
 
 export interface CreateTableRequest {

@@ -81,6 +81,26 @@ const formatScheduleDayLabel = (date: Date, index: number) => {
   });
 };
 
+const parseLocalDateString = (dateString: string) => {
+  const [year, month, day] = dateString.split('-').map(Number);
+  return new Date(year, month - 1, day);
+};
+
+const formatSessionDateLabel = (dateString: string) => {
+  const todayString = getTodayString();
+  if (dateString === todayString) return 'Hôm nay';
+
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  if (dateString === formatLocalDate(tomorrow)) return 'Ngày mai';
+
+  return parseLocalDateString(dateString).toLocaleDateString('vi-VN', {
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+  });
+};
+
 const StaffDashboard = () => {
   const [schedule, setSchedule] = useState<StaffScheduleItem[]>([]);
   const [sessions, setSessions] = useState<StaffSessionItem[]>([]);
@@ -144,7 +164,17 @@ const StaffDashboard = () => {
     [schedule]
   );
   const completedToday = todaySessions.filter((session) => session.isCompleted).length;
-  const upcomingToday = todaySessions.filter((session) => !session.isCompleted);
+  const upcomingSessions = useMemo(
+    () =>
+      sessions
+        .filter((session) => !session.isCompleted)
+        .sort((a, b) =>
+          a.sessionDate === b.sessionDate
+            ? a.startTime.localeCompare(b.startTime)
+            : a.sessionDate.localeCompare(b.sessionDate)
+        ),
+    [sessions]
+  );
   const openScheduleSlots = todaySchedule.filter((slot) => !slot.isBlocked).length;
 
   return (
@@ -319,13 +349,15 @@ const StaffDashboard = () => {
                 Đang tải dữ liệu...
               </h3>
             </div>
-          ) : upcomingToday.length > 0 ? (
+          ) : upcomingSessions.length > 0 ? (
             <div className="space-y-4">
-              {upcomingToday.map((session) => (
+              {upcomingSessions.map((session) => (
                 <div key={session.id} className="flex items-center justify-between rounded-xl bg-surface-container-lowest p-6 shadow-sm border border-outline-variant/10">
                   <div className="flex items-center gap-6">
                     <div className="flex h-16 w-16 flex-col items-center justify-center rounded-xl border border-outline-variant/10 bg-surface">
-                      <span className="font-body text-[10px] font-bold uppercase text-secondary">Giờ</span>
+                      <span className="font-body text-[10px] font-bold uppercase text-secondary">
+                        {formatSessionDateLabel(session.sessionDate)}
+                      </span>
                       <span className="font-headline text-xl font-bold text-on-surface">{session.startTime.split(':')[0]}</span>
                     </div>
                     <div>
@@ -352,7 +384,7 @@ const StaffDashboard = () => {
                 Chưa có lịch trình
               </h3>
               <p className="mx-auto max-w-md px-6 font-body text-secondary">
-                Hiện chưa có buổi dạy nào được lên lịch cho hôm nay. Hãy kiểm tra lại "Lịch rảnh" để cập nhật trạng thái của bạn.
+                Hiện chưa có buổi dạy nào đang chờ hoàn tất hoặc sắp diễn ra.
               </p>
             </div>
           )}

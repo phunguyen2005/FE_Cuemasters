@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { Calendar, Users, CheckCircle, ArrowRight, CalendarPlus, Settings, LogOut, Loader2, AlertCircle } from 'lucide-react';
+import { AlertCircle, Calendar, CalendarPlus, CheckCircle, Loader2, LogOut, Users } from 'lucide-react';
 import StaffPageShell from './StaffPageShell';
 import { staffService } from '../../services/staffService';
 
@@ -10,6 +10,7 @@ interface StaffScheduleItem {
   startTime: string;
   endTime: string;
   isBlocked: boolean;
+  specificDate?: string | null;
 }
 
 interface StaffSessionItem {
@@ -45,7 +46,40 @@ const getErrorMessage = (error: unknown, fallbackMessage: string) => {
   return fallbackMessage;
 };
 
-const getTodayString = () => new Date().toISOString().split('T')[0];
+const formatLocalDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
+const getTodayString = () => formatLocalDate(new Date());
+
+const getUpcomingDates = (count: number) => {
+  const today = new Date();
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() + index);
+    return date;
+  });
+};
+
+const isScheduleForDate = (slot: StaffScheduleItem, date: Date) => {
+  const dateString = formatLocalDate(date);
+  return slot.specificDate
+    ? slot.specificDate === dateString
+    : slot.dayOfWeek === date.getDay();
+};
+
+const formatScheduleDayLabel = (date: Date, index: number) => {
+  if (index === 0) return 'Hôm nay';
+
+  return date.toLocaleDateString('vi-VN', {
+    weekday: 'short',
+    day: '2-digit',
+    month: '2-digit',
+  });
+};
 
 const StaffDashboard = () => {
   const [schedule, setSchedule] = useState<StaffScheduleItem[]>([]);
@@ -61,7 +95,7 @@ const StaffDashboard = () => {
 
     try {
       const [scheduleResponse, sessionsResponse] = await Promise.all([
-        staffService.getSchedule(getTodayString()),
+        staffService.getAvailability(),
         staffService.getSessions(),
       ]);
 
@@ -80,13 +114,38 @@ const StaffDashboard = () => {
     void loadData();
   }, []);
 
+  const todayString = getTodayString();
+
   const todaySessions = useMemo(
-    () => sessions.filter((session) => session.sessionDate === getTodayString()),
-    [sessions]
+    () => sessions.filter((session) => session.sessionDate === todayString),
+    [sessions, todayString]
+  );
+  const todaySchedule = useMemo(() => {
+    const today = new Date();
+    return schedule.filter((slot) => isScheduleForDate(slot, today));
+  }, [schedule, todayString]);
+  const upcomingSchedule = useMemo(
+    () =>
+      getUpcomingDates(7)
+        .flatMap((date, index) =>
+          schedule
+            .filter((slot) => isScheduleForDate(slot, date))
+            .map((slot) => ({
+              ...slot,
+              dateString: formatLocalDate(date),
+              dayLabel: formatScheduleDayLabel(date, index),
+            }))
+        )
+        .sort((a, b) =>
+          a.dateString === b.dateString
+            ? a.startTime.localeCompare(b.startTime)
+            : a.dateString.localeCompare(b.dateString)
+        ),
+    [schedule]
   );
   const completedToday = todaySessions.filter((session) => session.isCompleted).length;
   const upcomingToday = todaySessions.filter((session) => !session.isCompleted);
-  const openScheduleSlots = schedule.filter((slot) => !slot.isBlocked).length;
+  const openScheduleSlots = todaySchedule.filter((slot) => !slot.isBlocked).length;
 
   return (
     <StaffPageShell>
@@ -178,6 +237,68 @@ const StaffDashboard = () => {
               </div>
             </div>
           </div>
+        </section>
+
+        {/* Upcoming Availability Section */}
+        <section className="mt-12 px-8 md:px-12 lg:px-24">
+          <div className="mb-8 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="h-6 w-1.5 rounded-full bg-tertiary"></div>
+              <h2 className="font-headline text-2xl font-bold tracking-tight text-on-surface">
+                Lịch rảnh sắp tới
+              </h2>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {Array.from({ length: 3 }).map((_, index) => (
+                <div
+                  key={index}
+                  className="h-28 animate-pulse rounded-xl border border-outline-variant/10 bg-surface-container-low"
+                />
+              ))}
+            </div>
+          ) : upcomingSchedule.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 xl:grid-cols-3">
+              {upcomingSchedule.slice(0, 6).map((slot) => (
+                <div
+                  key={`${slot.id}-${slot.dateString}`}
+                  className="flex items-center justify-between rounded-xl border border-outline-variant/10 bg-surface-container-lowest p-5 shadow-sm"
+                >
+                  <div>
+                    <p className="font-body text-xs font-bold uppercase tracking-widest text-secondary">
+                      {slot.dayLabel}
+                    </p>
+                    <p className="mt-1 font-headline text-lg font-bold text-on-surface">
+                      {slot.startTime} - {slot.endTime}
+                    </p>
+                  </div>
+                  <span
+                    className={`rounded-full px-3 py-1 font-body text-xs font-bold ${
+                      slot.isBlocked
+                        ? 'bg-primary/10 text-primary'
+                        : 'bg-tertiary/10 text-tertiary'
+                    }`}
+                  >
+                    {slot.isBlocked ? 'Bận' : 'Còn mở'}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed border-outline-variant/30 bg-surface-container-low py-16 text-center">
+              <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-full bg-surface-container-high">
+                <CalendarPlus className="text-secondary" size={28} />
+              </div>
+              <h3 className="mb-2 font-headline text-lg font-bold text-on-surface">
+                Chưa có lịch rảnh
+              </h3>
+              <p className="mx-auto max-w-md px-6 font-body text-secondary">
+                Các khung giờ tạo trong trang "Lịch rảnh" sẽ xuất hiện tại đây.
+              </p>
+            </div>
+          )}
         </section>
 
         {/* Upcoming Sessions Section */}

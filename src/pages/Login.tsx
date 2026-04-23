@@ -47,7 +47,13 @@ export default function Login({ onNavigate }: ScreenProps) {
       navigate(getDefaultRouteForRole(response.role));
     } catch (err: any) {
       if (err.response?.status === 403) {
-        navigate('/verify-email', { state: { email, purpose: 'activate' } });
+        const role = err.response?.data?.role ?? err.response?.data?.Role;
+        if (role === 'Customer') {
+          navigate('/verify-email', { state: { email, purpose: 'activate' } });
+          return;
+        }
+
+        setError(getErrorMessage(err, 'Tài khoản chưa được kích hoạt. Vui lòng liên hệ quản trị viên.'));
         return;
       }
 

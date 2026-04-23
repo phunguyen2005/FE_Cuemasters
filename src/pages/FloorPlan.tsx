@@ -6,15 +6,12 @@ import { CategoryAvailabilitySlot, PaymentMethod, ScreenProps, TableType } from 
 import { useBookingStore } from '../stores/bookingStore';
 import { useAuthStore } from '../stores/authStore';
 import { useMembershipStore } from '../stores/membershipStore';
+import { bookingService } from '../services/bookingService';
 import { tableService } from '../services/tableService';
 import { paymentService } from '../services/paymentService';
 import { formatCurrency } from '../utils/formatCurrency';
 import { getTableTypeLabel } from '../utils/labels';
-import {
-  closeExternalPaymentWindow,
-  createExternalPaymentWindow,
-  redirectToExternalPayment,
-} from '../utils/paymentRedirect';
+import { redirectToExternalPayment } from '../utils/paymentRedirect';
 
 const THIRTY_MINUTES_IN_MS = 30 * 60 * 1000;
 const DEPOSIT_AMOUNT = 50000;
@@ -286,12 +283,21 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
     const endSlotStr = orderedSelectedSlots[orderedSelectedSlots.length - 1];
     const endTimeObj = addMinutes(new Date(`1970-01-01T${endSlotStr}`), 30);
 
+    const eligibility = await bookingService
+      .getCreateBookingEligibility()
+      .catch(() => null);
+    if (eligibility && !eligibility.canCreate) {
+      setBookingSuccess('');
+      setBookingError(
+        eligibility.message || 'Bạn chưa thể tạo lượt đặt mới vào lúc này.',
+      );
+      return;
+    }
+
     setBookingError('');
     setBookingSuccess('');
     bookingInFlight.current = true;
     setIsSubmittingPayment(true);
-    const paymentWindow =
-      paymentMethod === 'PayPal' ? createExternalPaymentWindow() : null;
 
     try {
       const response = await createBooking({
@@ -309,7 +315,6 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
       }
 
       if (paymentMethod === 'Cash') {
-        closeExternalPaymentWindow(paymentWindow);
         setBookingSuccess(response.message);
         clearBooking();
         onNavigate('bookingHistory');
@@ -326,16 +331,14 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
           sessionStorage.setItem('pendingPayPalOrderId', paymentResult.payPalOrderId);
         }
         sessionStorage.setItem('pendingReservationId', reservationId);
-        redirectToExternalPayment(paymentResult.approvalUrl, paymentWindow);
+        redirectToExternalPayment(paymentResult.approvalUrl);
         return;
       }
 
-      closeExternalPaymentWindow(paymentWindow);
       setBookingSuccess(response.message || 'Đặt bàn thành công.');
       clearBooking();
       onNavigate('bookingHistory');
     } catch (error) {
-      closeExternalPaymentWindow(paymentWindow);
       const isConflictError =
         typeof error === 'object' &&
         error !== null &&

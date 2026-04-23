@@ -20,7 +20,7 @@ export const membershipService = {
   
   getMyMembership: async (): Promise<UserMembership | null> => {
     try {
-      const response = await api.get<UserMembership>('/memberships/my');
+      const response = await api.get<UserMembership | null>('/memberships/my');
       return response.data;
     } catch (error) {
       return null;

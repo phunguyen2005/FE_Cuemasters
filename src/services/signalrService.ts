@@ -9,7 +9,7 @@ type TableSlotGroup = {
 class SignalRService {
   private connection: signalR.HubConnection | null = null;
   private connectPromise: Promise<void> | null = null;
-  private readonly backendUrl = (import.meta.env.VITE_API_URL || 'http://localhost:5235/api').replace(/\/api\/?$/, '');
+  private readonly backendUrl = (import.meta.env.VITE_API_URL || 'http://localhost:62267/api').replace(/\/api\/?$/, '');
   private readonly floorPlanGroups = new Set<string>();
   private readonly tableSlotGroups = new Map<string, TableSlotGroup>();
 

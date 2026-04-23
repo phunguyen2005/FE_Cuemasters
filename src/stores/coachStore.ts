@@ -57,7 +57,7 @@ export const useCoachStore = create<CoachState>((set, get) => ({
   bookCoach: async (payload) => {
     const { selectedCoach } = get();
     if (!selectedCoach) {
-      return { success: false, message: 'Chưa chọn HLV.' };
+      return { success: false, message: 'Please select a coach first.' };
     }
     set({ isBooking: true });
     try {
@@ -69,9 +69,13 @@ export const useCoachStore = create<CoachState>((set, get) => ({
       });
       // Refresh availability so the booked slot reflects the new state
       await get().fetchAvailability(selectedCoach.id, payload.sessionDate);
-      return { success: true, message: 'Đặt lịch thành công!' };
+      return { success: true, message: 'Coach booked successfully!' };
     } catch (err: any) {
-      const message = err?.response?.data?.message || err?.message || 'Không thể đặt lịch.';
+      const message =
+        err?.response?.data?.message ||
+        err?.response?.data?.Message ||
+        err?.message ||
+        'Unable to book coach session.';
       return { success: false, message };
     } finally {
       set({ isBooking: false });

@@ -377,6 +377,11 @@ export interface CreateBookingResponse {
   bookingId?: string;
 }
 
+export interface CreateBookingEligibilityResponse {
+  canCreate: boolean;
+  message: string;
+}
+
 export interface RescheduleBookingRequest {
   newStartTime: string;
   newEndTime: string;

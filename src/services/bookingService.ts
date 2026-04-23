@@ -3,6 +3,7 @@ import {
   ApiMessageResponse,
   BookingListResponse,
   CategoryAvailability,
+  CreateBookingEligibilityResponse,
   CreateBookingRequest,
   CreateBookingResponse,
   RescheduleBookingRequest,
@@ -42,6 +43,23 @@ const getApiErrorMessage = (error: unknown, fallback: string) => {
 };
 
 export const bookingService = {
+  getCreateBookingEligibility: async (): Promise<CreateBookingEligibilityResponse> => {
+    const response = await api.get<{
+      CanCreate?: boolean;
+      canCreate?: boolean;
+      Message?: string;
+      message?: string;
+    }>('/reservations/can-create');
+
+    return {
+      canCreate: response.data.canCreate ?? response.data.CanCreate ?? false,
+      message:
+        response.data.message ||
+        response.data.Message ||
+        'Reservation eligibility check failed.',
+    };
+  },
+
   createBooking: async (data: CreateBookingRequest): Promise<CreateBookingResponse> => {
     const requestKey = getCreateReservationKey(data);
     const recentConflict = createReservationConflictUntil.get(requestKey);

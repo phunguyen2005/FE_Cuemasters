@@ -6,11 +6,7 @@ import { useAuthStore } from '../stores/authStore';
 import { formatCurrency } from '../utils/formatCurrency';
 import { Check, Crown, CalendarDays, Clock, Info } from 'lucide-react';
 import { getMembershipTierLabel } from '../utils/labels';
-import {
-  closeExternalPaymentWindow,
-  createExternalPaymentWindow,
-  redirectToExternalPayment,
-} from '../utils/paymentRedirect';
+import { redirectToExternalPayment } from '../utils/paymentRedirect';
 
 const getAdvanceWindowLabel = (days: number) => {
   if (days <= 0) return 'Chỉ đặt trong ngày';
@@ -128,8 +124,6 @@ export default function Membership({ onNavigate }: ScreenProps) {
     }
 
     setFeedback(null);
-    const paymentWindow =
-      membershipPaymentMethod === 'PayPal' ? createExternalPaymentWindow() : null;
 
     try {
       const result = await subscribe(planId, autoRenewOnSubscribe, membershipPaymentMethod);
@@ -142,11 +136,10 @@ export default function Membership({ onNavigate }: ScreenProps) {
         if (result.payPalOrderId) {
           sessionStorage.setItem('pendingMembershipPayPalOrderId', result.payPalOrderId);
         }
-        redirectToExternalPayment(result.approvalUrl, paymentWindow);
+        redirectToExternalPayment(result.approvalUrl);
         return;
       }
 
-      closeExternalPaymentWindow(paymentWindow);
       if (!result.membership) {
         throw new Error('Không tìm thấy thông tin gói thành viên vừa đăng ký.');
       }
@@ -156,7 +149,6 @@ export default function Membership({ onNavigate }: ScreenProps) {
         message: `Đăng ký gói ${result.membership.planName} thành công.`,
       });
     } catch (error) {
-      closeExternalPaymentWindow(paymentWindow);
       setFeedback({
         type: 'error',
         message: getErrorMessage(error, 'Không thể đăng ký gói thành viên lúc này.'),

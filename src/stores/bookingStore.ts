@@ -2,6 +2,33 @@ import { create } from 'zustand';
 import { Booking, CreateBookingRequest, CreateBookingResponse, TableType, CategoryAvailability } from '../types';
 import { bookingService } from '../services/bookingService';
 
+interface CancelBookingResult {
+  success: boolean;
+  message: string;
+}
+
+const getApiErrorMessage = (error: unknown, fallback: string) => {
+  if (
+    typeof error === 'object' &&
+    error !== null &&
+    'response' in error &&
+    (typeof (error as any).response?.data?.message === 'string' ||
+      typeof (error as any).response?.data?.Message === 'string')
+  ) {
+    return (
+      (error as any).response?.data?.message ||
+      (error as any).response?.data?.Message ||
+      fallback
+    );
+  }
+
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  return fallback;
+};
+
 interface BookingState {
   selectedCategory: TableType | null;
   categoryAvailability: CategoryAvailability | null;
@@ -21,7 +48,7 @@ interface BookingState {
   fetchCategoryAvailability: (category: TableType, date: Date) => Promise<void>;
   fetchBookings: (page?: number, size?: number, status?: string) => Promise<void>;
   createBooking: (data: CreateBookingRequest) => Promise<CreateBookingResponse>;
-  cancelBooking: (id: string) => Promise<boolean>;
+  cancelBooking: (id: string) => Promise<CancelBookingResult>;
 }
 
 export const useBookingStore = create<BookingState>((set) => ({
@@ -93,13 +120,16 @@ export const useBookingStore = create<BookingState>((set) => ({
   cancelBooking: async (id: string) => {
     set({ isLoading: true });
     try {
-      const success = await bookingService.cancelBooking(id);
-      if (success) {
-        set((state) => ({
-          bookings: state.bookings.map(b => b.id === id ? { ...b, status: 'Cancelled' } : b)
-        }));
-      }
-      return success;
+      const result = await bookingService.cancelBooking(id);
+      set((state) => ({
+        bookings: state.bookings.map(b => b.id === id ? { ...b, status: 'Cancelled' } : b)
+      }));
+      return { success: true, message: result.message };
+    } catch (error) {
+      return {
+        success: false,
+        message: getApiErrorMessage(error, 'Cannot cancel this booking right now.'),
+      };
     } finally {
       set({ isLoading: false });
     }

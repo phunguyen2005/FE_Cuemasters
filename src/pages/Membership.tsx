@@ -70,9 +70,7 @@ export default function Membership({ onNavigate }: ScreenProps) {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   const activeMembership = isAuthenticated ? myMembership : null;
   const [autoRenewOnSubscribe, setAutoRenewOnSubscribe] = useState(true);
-  const [membershipPaymentMethod, setMembershipPaymentMethod] = useState<
-    Extract<PaymentMethod, 'Cash' | 'PayPal'>
-  >('Cash');
+  const membershipPaymentMethod: Extract<PaymentMethod, 'PayPal'> = 'PayPal';
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -300,26 +298,10 @@ export default function Membership({ onNavigate }: ScreenProps) {
 
           {!activeMembership && (
             <div className="mx-auto flex max-w-2xl flex-col gap-5">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 gap-3">
                 <button
                   type="button"
-                  onClick={() => setMembershipPaymentMethod('Cash')}
-                  className={`rounded-xl border px-5 py-4 text-sm font-bold transition-colors ${
-                    membershipPaymentMethod === 'Cash'
-                      ? 'border-primary bg-primary text-white'
-                      : 'border-stone-800 bg-stone-900/40 text-stone-300 hover:border-primary/50 hover:text-white'
-                  }`}
-                >
-                  Tiền mặt
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setMembershipPaymentMethod('PayPal')}
-                  className={`rounded-xl border px-5 py-4 text-sm font-bold transition-colors ${
-                    membershipPaymentMethod === 'PayPal'
-                      ? 'border-primary bg-primary text-white'
-                      : 'border-stone-800 bg-stone-900/40 text-stone-300 hover:border-primary/50 hover:text-white'
-                  }`}
+                  className="rounded-xl border border-primary bg-primary px-5 py-4 text-sm font-bold text-white"
                 >
                   PayPal
                 </button>

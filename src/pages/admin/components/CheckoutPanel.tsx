@@ -125,7 +125,8 @@ export const CheckoutPanel = ({
   };
 
   const handleSubmit = async () => {
-    if (!bookingId) {
+    const checkoutId = bookingId ?? sessionId;
+    if (!checkoutId) {
       setError('Không tìm thấy lượt đặt đang hoạt động để thanh toán.');
       return;
     }
@@ -136,7 +137,7 @@ export const CheckoutPanel = ({
 
     try {
       const apiPaymentMethod = paymentMethod === 'Transfer' ? 'Cash' : paymentMethod;
-      const response = await adminService.checkoutBooking(bookingId, {
+      const response = await adminService.checkoutBooking(checkoutId, {
         paymentMethod: apiPaymentMethod,
       });
       setSuccessMessage(response.message || 'Thanh toán thành công.');
@@ -350,7 +351,7 @@ export const CheckoutPanel = ({
       <div className="border-t border-neutral-200 bg-neutral-50 p-6">
         <button
           onClick={() => void handleSubmit()}
-          disabled={!bookingId || submitting || loading}
+          disabled={(!bookingId && !sessionId) || submitting || loading}
           className="w-full rounded-xl bg-primary py-4 text-lg font-bold text-white shadow-lg shadow-primary/30 transition-all hover:bg-primary-600 disabled:cursor-not-allowed disabled:opacity-50 disabled:shadow-none"
         >
           {submitting ? 'Đang xử lý...' : 'Xác nhận thanh toán'}

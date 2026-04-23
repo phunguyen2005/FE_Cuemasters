@@ -33,7 +33,7 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
   const [filter, setFilter] = useState<'' | BookingStatus>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
-  const [feedback, setFeedback] = useState('');
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
     void fetchBookings(currentPage, 10, filter || undefined);
@@ -44,18 +44,22 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
   const handleFilterChange = (nextFilter: '' | BookingStatus) => {
     setFilter(nextFilter);
     setCurrentPage(1);
+    setFeedback(null);
   };
 
   const handleCancelBooking = async (bookingId: string) => {
-    if (!window.confirm('Bạn có chắc chắn muốn hủy lượt đặt chỗ này không?')) {
+    if (!window.confirm('Ban co chac chan muon huy luot dat cho nay khong?')) {
       return;
     }
 
-    const success = await cancelBooking(bookingId);
-    if (success) {
-      setFeedback('Đã hủy lượt đặt chỗ thành công.');
+    const result = await cancelBooking(bookingId);
+    if (result.success) {
+      setFeedback({ type: 'success', message: result.message || 'Huy dat cho thanh cong.' });
       void fetchBookings(currentPage, 10, filter || undefined);
+      return;
     }
+
+    setFeedback({ type: 'error', message: result.message });
   };
 
   return (
@@ -72,8 +76,14 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
           </div>
 
           {feedback && (
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-              {feedback}
+            <div
+              className={`rounded-xl border px-4 py-3 text-sm ${
+                feedback.type === 'success'
+                  ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+                  : 'border-rose-200 bg-rose-50 text-rose-700'
+              }`}
+            >
+              {feedback.message}
             </div>
           )}
 
@@ -108,9 +118,11 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
               visibleBookings.map((booking) => {
                 const startTime = new Date(booking.startTime);
                 const endTime = new Date(booking.endTime);
+                const hoursUntilStart = (startTime.getTime() - Date.now()) / (1000 * 60 * 60);
                 const durationHours = Math.max(0, (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60));
                 const isActive = booking.status === 'Confirmed' || booking.status === 'InProgress';
                 const isExpanded = expandedBookingId === booking.id;
+                const canCancel = booking.status === 'Confirmed' && hoursUntilStart >= 2;
 
                 return (
                   <div
@@ -186,13 +198,18 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
                         >
                           {isExpanded ? 'Ẩn chi tiết' : 'Chi tiết'}
                         </button>
-                        {booking.status === 'Confirmed' && (
+                        {canCancel && (
                           <button
                             onClick={() => void handleCancelBooking(booking.id)}
                             className="whitespace-nowrap rounded-full bg-error/10 px-6 py-3 text-center text-xs font-bold uppercase tracking-widest text-error transition-colors hover:bg-error/20"
                           >
-                            Hủy đặt chỗ
+                            Huy dat cho
                           </button>
+                        )}
+                        {booking.status === 'Confirmed' && !canCancel && (
+                          <span className="text-center text-xs font-medium text-secondary">
+                            Khong the huy trong vong 2 gio truoc gio bat dau.
+                          </span>
                         )}
                       </div>
                     </div>

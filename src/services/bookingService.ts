@@ -126,13 +126,17 @@ export const bookingService = {
     return response.data;
   },
   
-  cancelBooking: async (id: string): Promise<boolean> => {
-    const response = await api.put(`/bookings/${id}/cancel`);
-    return response.status === 200 || response.status === 204;
+  cancelBooking: async (id: string): Promise<ApiMessageResponse> => {
+    const response = await api.put<{ message?: string; Message?: string }>(`/bookings/${id}/cancel`);
+    return {
+      message: response.data.message || response.data.Message || 'Booking cancelled successfully.',
+    };
   },
   
   rescheduleBooking: async (id: string, data: RescheduleBookingRequest): Promise<ApiMessageResponse> => {
-    const response = await api.put<ApiMessageResponse>(`/bookings/${id}/reschedule`, data);
-    return response.data;
+    const response = await api.put<{ message?: string; Message?: string }>(`/bookings/${id}/reschedule`, data);
+    return {
+      message: response.data.message || response.data.Message || 'Booking rescheduled successfully.',
+    };
   }
 };

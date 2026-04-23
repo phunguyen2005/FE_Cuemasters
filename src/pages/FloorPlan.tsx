@@ -96,9 +96,7 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
 
   const [bookingError, setBookingError] = useState('');
   const [bookingSuccess, setBookingSuccess] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<Extract<PaymentMethod, 'Cash' | 'PayPal'>>(
-    'Cash',
-  );
+  const [paymentMethod] = useState<Extract<PaymentMethod, 'PayPal'>>('PayPal');
   const [isSubmittingPayment, setIsSubmittingPayment] = useState(false);
   const [lastConflictKey, setLastConflictKey] = useState<string | null>(null);
   const [categoryRates, setCategoryRates] = useState<Record<TableType, number>>(
@@ -235,13 +233,6 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
     toggleSlot(slot.startTime);
   };
 
-  const handleSelectPaymentMethod = (method: Extract<PaymentMethod, 'Cash' | 'PayPal'>) => {
-    setBookingError('');
-    setBookingSuccess('');
-    setLastConflictKey(null);
-    setPaymentMethod(method);
-  };
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (bookingInFlight.current || isSubmittingPayment || isBookingLoading) {
@@ -305,7 +296,7 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
         bookingDate: format(selectedDate, 'yyyy-MM-dd'),
         startTime: startSlotStr.slice(0, 5),
         endTime: format(endTimeObj, 'HH:mm'),
-        method: paymentMethod,
+        method: 'PayPal',
         fnBOrders: [],
       });
 
@@ -314,14 +305,7 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
         throw new Error('Không tìm thấy mã lượt đặt bàn vừa tạo.');
       }
 
-      if (paymentMethod === 'Cash') {
-        setBookingSuccess(response.message);
-        clearBooking();
-        onNavigate('bookingHistory');
-        return;
-      }
-
-      const paymentResult = await paymentService.createPayment(reservationId, paymentMethod);
+      const paymentResult = await paymentService.createPayment(reservationId, 'PayPal');
       if (paymentResult.requiresRedirect) {
         if (!paymentResult.approvalUrl) {
           throw new Error('Không tìm thấy đường dẫn thanh toán PayPal.');
@@ -619,26 +603,10 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
                 <label className="text-[10px] font-bold uppercase tracking-[0.22em] text-secondary">
                   Phương thức thanh toán cọc
                 </label>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 gap-3">
                   <button
                     type="button"
-                    onClick={() => handleSelectPaymentMethod('Cash')}
-                    className={`rounded-xl border px-4 py-3 text-sm font-bold transition-colors ${
-                      paymentMethod === 'Cash'
-                        ? 'border-primary bg-primary text-on-primary'
-                        : 'border-outline-variant/30 bg-surface-container-lowest text-secondary hover:border-primary/40 hover:text-primary'
-                    }`}
-                  >
-                    Tiền mặt
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectPaymentMethod('PayPal')}
-                    className={`rounded-xl border px-4 py-3 text-sm font-bold transition-colors ${
-                      paymentMethod === 'PayPal'
-                        ? 'border-primary bg-primary text-on-primary'
-                        : 'border-outline-variant/30 bg-surface-container-lowest text-secondary hover:border-primary/40 hover:text-primary'
-                    }`}
+                    className="rounded-xl border border-primary bg-primary px-4 py-3 text-sm font-bold text-on-primary"
                   >
                     PayPal
                   </button>

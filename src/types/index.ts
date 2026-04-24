@@ -416,7 +416,11 @@ export interface CategoryAvailability {
   date: string;
   totalTables: number;
   bufferSize: number;
+  minBufferSize: number;
+  maxBufferSize: number;
   onlineCapacity: number;
+  minOnlineCapacity: number;
+  maxOnlineCapacity: number;
   slots: CategoryAvailabilitySlot[];
 }
 

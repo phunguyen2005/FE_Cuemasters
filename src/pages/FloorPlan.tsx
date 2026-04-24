@@ -164,6 +164,28 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
     )}`;
   }, [orderedSelectedSlots]);
 
+  const selectedSlotSummary = useMemo(() => {
+    if (!categoryAvailability || orderedSelectedSlots.length === 0) {
+      return null;
+    }
+
+    const selectedSlotSet = new Set(orderedSelectedSlots);
+    const selectedSlotDetails = categoryAvailability.slots.filter((slot) =>
+      selectedSlotSet.has(slot.startTime),
+    );
+
+    if (selectedSlotDetails.length !== orderedSelectedSlots.length) {
+      return null;
+    }
+
+    return {
+      onlineCapacity: Math.min(...selectedSlotDetails.map((slot) => slot.capacity)),
+      bufferSize: Math.max(
+        ...selectedSlotDetails.map((slot) => categoryAvailability.totalTables - slot.capacity),
+      ),
+    };
+  }, [categoryAvailability, orderedSelectedSlots]);
+
   const currentReservationKey = useMemo(() => {
     if (!selectedCategory || orderedSelectedSlots.length === 0) {
       return null;
@@ -499,18 +521,26 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
 
               {selectedCategory && categoryAvailability && (
                 <div className="rounded-2xl border border-outline-variant/20 bg-surface-container-lowest p-4 text-sm">
-                  <div className="flex items-center justify-between">
-                    <span className="text-secondary">Công suất online</span>
-                    <span className="font-bold text-neutral-900">
-                      {categoryAvailability.onlineCapacity}/{categoryAvailability.totalTables} bàn
-                    </span>
-                  </div>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-secondary">Bàn dự phòng cho khách đến trực tiếp</span>
-                    <span className="font-medium text-neutral-900">
-                      {categoryAvailability.bufferSize} bàn
-                    </span>
-                  </div>
+                  {selectedSlotSummary ? (
+                    <>
+                      <div className="flex items-center justify-between">
+                        <span className="text-secondary">Công suất online</span>
+                        <span className="font-bold text-neutral-900">
+                          {selectedSlotSummary.onlineCapacity}/{categoryAvailability.totalTables} bàn
+                        </span>
+                      </div>
+                      <div className="mt-2 flex items-center justify-between">
+                        <span className="text-secondary">Bàn dự phòng cho khách đến trực tiếp</span>
+                        <span className="font-medium text-neutral-900">
+                          {selectedSlotSummary.bufferSize} bàn
+                        </span>
+                      </div>
+                    </>
+                  ) : (
+                    <p className="leading-6 text-secondary">
+                      Chọn khung giờ để xem công suất chính xác.
+                    </p>
+                  )}
                 </div>
               )}
 
@@ -654,3 +684,4 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
     </CustomerLayout>
   );
 }
+

@@ -182,11 +182,6 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-secondary">
                           <span className="material-symbols-outlined text-[14px]">payments</span>
                           <span>Cọc: {formatMoney(booking.depositAmount)}</span>
-                          {booking.status === 'Cancelled' && (
-                            <span className={booking.depositForfeited ? 'font-medium text-error' : 'font-medium text-emerald-600'}>
-                              ({booking.depositForfeited ? 'Không hoàn cọc' : 'Đã hoàn cọc'})
-                            </span>
-                          )}
                           {booking.status === 'NoShow' && <span className="font-medium text-error">(Mất cọc)</span>}
                         </div>
                       </div>

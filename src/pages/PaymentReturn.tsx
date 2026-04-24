@@ -1,8 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { AlertCircle, CheckCircle2, Loader2 } from 'lucide-react';
 import CustomerLayout from '../components/layout/CustomerLayout';
 import { paymentService } from '../services/paymentService';
 import { Payment, ScreenProps } from '../types';
+
+const payPalCaptureRequests = new Map<string, Promise<Payment>>();
 
 const clearPendingPaymentKeys = () => {
   sessionStorage.removeItem('pendingPayPalOrderId');
@@ -36,15 +38,8 @@ export default function PaymentReturn({ onNavigate }: ScreenProps) {
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [message, setMessage] = useState('Đang xác nhận thanh toán PayPal...');
   const [payment, setPayment] = useState<Payment | null>(null);
-  const didCapture = useRef(false);
 
   useEffect(() => {
-    if (didCapture.current) {
-      return;
-    }
-
-    didCapture.current = true;
-
     const token = new URLSearchParams(window.location.search).get('token');
     if (!token) {
       setStatus('error');
@@ -53,9 +48,22 @@ export default function PaymentReturn({ onNavigate }: ScreenProps) {
       return;
     }
 
+    let isActive = true;
+
     const capturePayment = async () => {
       try {
-        const capturedPayment = await paymentService.capturePayPalPayment(token);
+        const existingRequest = payPalCaptureRequests.get(token);
+        const captureRequest = existingRequest ?? paymentService.capturePayPalPayment(token);
+
+        if (!existingRequest) {
+          payPalCaptureRequests.set(token, captureRequest);
+        }
+
+        const capturedPayment = await captureRequest;
+        if (!isActive) {
+          return;
+        }
+
         setPayment(capturedPayment);
         setStatus('success');
         setMessage(
@@ -65,6 +73,11 @@ export default function PaymentReturn({ onNavigate }: ScreenProps) {
         );
         clearPendingPaymentKeys();
       } catch (error) {
+        payPalCaptureRequests.delete(token);
+        if (!isActive) {
+          return;
+        }
+
         setStatus('error');
         setMessage(
           getErrorMessage(
@@ -77,6 +90,10 @@ export default function PaymentReturn({ onNavigate }: ScreenProps) {
     };
 
     void capturePayment();
+
+    return () => {
+      isActive = false;
+    };
   }, []);
 
   const isMembershipPayment = payment?.type === 'MembershipPurchase';
@@ -129,3 +146,4 @@ export default function PaymentReturn({ onNavigate }: ScreenProps) {
     </CustomerLayout>
   );
 }
+

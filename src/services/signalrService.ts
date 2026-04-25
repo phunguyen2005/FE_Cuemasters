@@ -12,6 +12,7 @@ class SignalRService {
   private readonly backendUrl = (import.meta.env.VITE_API_URL || 'http://localhost:62267/api').replace(/\/api\/?$/, '');
   private readonly floorPlanGroups = new Set<string>();
   private readonly tableSlotGroups = new Map<string, TableSlotGroup>();
+  private readonly sessionGroups = new Set<string>();
 
   private buildConnection() {
     if (this.connection) {
@@ -47,6 +48,10 @@ class SignalRService {
 
     for (const { tableId, date } of this.tableSlotGroups.values()) {
       await this.connection.invoke('JoinTableSlotGroup', tableId, date);
+    }
+
+    for (const sessionId of this.sessionGroups) {
+      await this.connection.invoke('JoinSessionGroup', sessionId);
     }
   }
 
@@ -137,6 +142,21 @@ class SignalRService {
     await this.connection.invoke('LeaveTableSlotGroup', tableId, date);
   }
 
+  public async joinSessionGroup(sessionId: string) {
+    this.sessionGroups.add(sessionId);
+    await this.invoke('JoinSessionGroup', sessionId);
+  }
+
+  public async leaveSessionGroup(sessionId: string) {
+    this.sessionGroups.delete(sessionId);
+
+    if (!this.connection || this.connection.state !== signalR.HubConnectionState.Connected) {
+      return;
+    }
+
+    await this.connection.invoke('LeaveSessionGroup', sessionId);
+  }
+
   public disconnect() {
     if (!this.connection) {
       return;
@@ -147,6 +167,7 @@ class SignalRService {
     this.connectPromise = null;
     this.floorPlanGroups.clear();
     this.tableSlotGroups.clear();
+    this.sessionGroups.clear();
   }
 }
 

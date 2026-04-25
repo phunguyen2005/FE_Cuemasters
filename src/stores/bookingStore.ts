@@ -122,7 +122,7 @@ export const useBookingStore = create<BookingState>((set) => ({
     try {
       const result = await bookingService.cancelBooking(id);
       set((state) => ({
-        bookings: state.bookings.map(b => b.id === id ? { ...b, status: 'Cancelled' } : b)
+        bookings: state.bookings.map(b => b.id === id ? { ...b, status: 'Cancelled', depositForfeited: true } : b)
       }));
       return { success: true, message: result.message };
     } catch (error) {

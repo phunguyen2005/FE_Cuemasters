@@ -10,6 +10,7 @@ import { CheckoutPanel } from '../components/CheckoutPanel';
 import { WalkInModal } from '../components/WalkInModal';
 import { useSignalR } from '../../../hooks/useSignalR';
 import { getTableStatusLabel, getTableTypeLabel } from '../../../utils/labels';
+import { formatLocalDate } from '../../../utils/date';
 
 const itemsPerPage = 10;
 
@@ -65,7 +66,7 @@ const getErrorMessage = (error: unknown, fallbackMessage: string) => {
   return fallbackMessage;
 };
 
-const getTodayDate = () => new Date().toISOString().slice(0, 10);
+const getTodayDate = () => formatLocalDate();
 
 const enrichTablesWithActiveSessions = (
   tables: AdminTable[],

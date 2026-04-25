@@ -296,23 +296,22 @@ export default function FloorPlan({ onNavigate }: ScreenProps) {
     const endSlotStr = orderedSelectedSlots[orderedSelectedSlots.length - 1];
     const endTimeObj = addMinutes(new Date(`1970-01-01T${endSlotStr}`), 30);
 
-    const eligibility = await bookingService
-      .getCreateBookingEligibility()
-      .catch(() => null);
-    if (eligibility && !eligibility.canCreate) {
-      setBookingSuccess('');
-      setBookingError(
-        eligibility.message || 'Bạn chưa thể tạo lượt đặt mới vào lúc này.',
-      );
-      return;
-    }
-
     setBookingError('');
     setBookingSuccess('');
     bookingInFlight.current = true;
     setIsSubmittingPayment(true);
 
     try {
+      const eligibility = await bookingService
+        .getCreateBookingEligibility()
+        .catch(() => null);
+      if (eligibility && !eligibility.canCreate) {
+        setBookingSuccess('');
+        setBookingError(
+          eligibility.message || 'Bạn chưa thể tạo lượt đặt mới vào lúc này.',
+        );
+        return;
+      }
       const response = await createBooking({
         requestedTableType: selectedCategory,
         bookingDate: format(selectedDate, 'yyyy-MM-dd'),

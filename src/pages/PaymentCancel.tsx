@@ -10,19 +10,23 @@ export default function PaymentCancel() {
     if (didRun.current) return;
     didRun.current = true;
 
-    const orderId = sessionStorage.getItem('pendingPayPalOrderId');
+    const reservationOrderId = sessionStorage.getItem('pendingPayPalOrderId');
+    const membershipOrderId = sessionStorage.getItem('pendingMembershipPayPalOrderId');
+    const orderId = membershipOrderId || reservationOrderId;
+
     const cleanup = async () => {
       if (orderId) {
         try {
           await paymentService.cancelPayPalPayment(orderId);
         } catch {
-          // swallow — worker will expire it if API fails
+          // Swallow error and rely on the server-side cleanup worker fallback.
         }
       }
+
       sessionStorage.removeItem('pendingPayPalOrderId');
       sessionStorage.removeItem('pendingReservationId');
       sessionStorage.removeItem('pendingMembershipPayPalOrderId');
-      navigate('/floor-plan', { replace: true });
+      navigate(membershipOrderId ? '/membership' : '/floor-plan', { replace: true });
     };
 
     void cleanup();

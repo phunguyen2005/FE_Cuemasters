@@ -129,7 +129,7 @@ export const bookingService = {
   cancelBooking: async (id: string): Promise<ApiMessageResponse> => {
     const response = await api.put<{ message?: string; Message?: string }>(`/bookings/${id}/cancel`);
     return {
-      message: response.data.message || response.data.Message || 'Booking cancelled successfully.',
+      message: response.data.message || response.data.Message || 'Reservation cancelled. Deposit is non-refundable.',
     };
   },
   

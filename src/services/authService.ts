@@ -62,6 +62,11 @@ export const authService = {
     return response.data;
   },
 
+  changePassword: async (currentPassword: string, newPassword: string) => {
+    const response = await api.post('/auth/change-password', { currentPassword, newPassword });
+    return response.data;
+  },
+
   refreshToken: async (refreshToken: string): Promise<LoginResponse> => {
     const response = await axios.post<LoginResponse>(`${api.defaults.baseURL}/auth/refresh-token`, { refreshToken });
     return response.data;

@@ -7,8 +7,9 @@ import { TableCard } from '../components/TableCard';
 import { InSessionOrderPanel } from '../components/InSessionOrderPanel';
 import { CheckoutPanel } from '../components/CheckoutPanel';
 import { getTableTypeLabel } from '../../../utils/labels';
+import { formatLocalDate } from '../../../utils/date';
 
-const getTodayDate = () => new Date().toISOString().slice(0, 10);
+const getTodayDate = () => formatLocalDate();
 
 const getTodayRange = () => {
   const now = new Date();
@@ -25,6 +26,20 @@ const formatClockTime = (value?: string | null) => {
   return Number.isNaN(parsed.getTime())
     ? value
     : parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+};
+
+const formatBookingDate = (value?: string | null) => {
+  if (!value) return '--/--/----';
+  const [datePart] = value.split('T');
+  const [year, month, day] = datePart.split('-').map(Number);
+  const parsed =
+    year && month && day
+      ? new Date(year, month - 1, day)
+      : new Date(value);
+
+  return Number.isNaN(parsed.getTime())
+    ? value
+    : parsed.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 const getErrorMessage = (error: unknown, fallbackMessage: string) => {
@@ -57,15 +72,61 @@ const enrichTablesWithActiveSessions = (
   }));
 };
 
+type ActiveFnBRequest = {
+  id: string;
+  tableId?: number | null;
+  tableNumber?: string | null;
+  requestedTableType: AdminBooking['requestedTableType'];
+  customerName?: string | null;
+  fnBTotal: number;
+  updatedAt: string;
+};
+
 export const DashboardView = () => {
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
   const [bookings, setBookings] = useState<AdminBooking[]>([]);
   const [adminTables, setAdminTables] = useState<AdminTable[]>([]);
+  const [activeFnBRequests, setActiveFnBRequests] = useState<ActiveFnBRequest[]>([]);
   const [warnings, setWarnings] = useState<UpcomingWarning[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [orderPanelTable, setOrderPanelTable] = useState<AdminTable | null>(null);
   const [checkoutTable, setCheckoutTable] = useState<AdminTable | null>(null);
+
+  const loadActiveFnBRequests = useCallback(async (tables: AdminTable[]) => {
+    const activeSessionTables = tables.filter(
+      (table): table is AdminTable & { activeSessionId: string } => Boolean(table.activeSessionId),
+    );
+
+    const loadedRequests = await Promise.all(
+      activeSessionTables.map(async (table) => {
+        try {
+          const runningTotal = await adminService.getSessionRunningTotal(table.activeSessionId);
+
+          if ((runningTotal.fnBTotal ?? 0) <= 0) {
+            return null;
+          }
+
+          const request: ActiveFnBRequest = {
+            id: `session-${table.activeSessionId}`,
+            tableId: table.id,
+            tableNumber: table.tableNumber,
+            requestedTableType: table.type,
+            customerName: table.currentCustomerName,
+            fnBTotal: runningTotal.fnBTotal,
+            updatedAt: new Date().toISOString(),
+          };
+
+          return request;
+        } catch (requestError) {
+          console.error('Unable to load active F&B running total', requestError);
+          return null;
+        }
+      }),
+    );
+
+    return loadedRequests.filter((request): request is ActiveFnBRequest => request !== null);
+  }, []);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -83,7 +144,10 @@ export const DashboardView = () => {
 
       setStats(statsData);
       setBookings(bookingsData.items || []);
-      setAdminTables(enrichTablesWithActiveSessions(tablesData, snapshot));
+      const enrichedTables = enrichTablesWithActiveSessions(tablesData, snapshot);
+      const fnBRequests = await loadActiveFnBRequests(enrichedTables);
+      setAdminTables(enrichedTables);
+      setActiveFnBRequests(fnBRequests);
       setWarnings(warningsData || []);
       setError('');
     } catch (fetchError) {
@@ -91,19 +155,23 @@ export const DashboardView = () => {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [loadActiveFnBRequests]);
+
+  const activeSessionIds = useMemo(
+    () => adminTables.map((table) => table.activeSessionId).filter((sessionId): sessionId is string => Boolean(sessionId)),
+    [adminTables],
+  );
+  const handleRealtimeRefresh = useCallback(() => {
+    void fetchData();
+  }, [fetchData]);
 
   useSignalR({
     floorPlanDate: getTodayDate(),
-    onTableStatusChanged: () => {
-      void fetchData();
-    },
-    onCategoryCapacityChanged: () => {
-      void fetchData();
-    },
-    onBookingAssigned: () => {
-      void fetchData();
-    },
+    sessionIds: activeSessionIds,
+    onTableStatusChanged: handleRealtimeRefresh,
+    onCategoryCapacityChanged: handleRealtimeRefresh,
+    onBookingAssigned: handleRealtimeRefresh,
+    onRunningTotalUpdated: handleRealtimeRefresh,
   });
 
   useEffect(() => {
@@ -127,9 +195,34 @@ export const DashboardView = () => {
     [bookings],
   );
 
-  const activeFnBBookings = useMemo(
-    () => bookings.filter((booking) => booking.status === 'InProgress' && booking.fnBTotal > 0),
-    [bookings],
+  const activeFnBItems = useMemo(
+    () => {
+      const tableIdsWithSessionOrders = new Set(
+        activeFnBRequests
+          .map((request) => request.tableId)
+          .filter((tableId): tableId is number => typeof tableId === 'number'),
+      );
+
+      const bookingItems: ActiveFnBRequest[] = bookings
+        .filter(
+          (booking) =>
+            booking.status === 'InProgress' &&
+            booking.fnBTotal > 0 &&
+            (booking.tableId == null || !tableIdsWithSessionOrders.has(booking.tableId)),
+        )
+        .map((booking) => ({
+          id: `booking-${booking.id}`,
+          tableId: booking.tableId,
+          tableNumber: booking.tableNumber,
+          requestedTableType: booking.requestedTableType,
+          customerName: booking.userFullName || booking.guestName,
+          fnBTotal: booking.fnBTotal,
+          updatedAt: new Date().toISOString(),
+        }));
+
+      return [...activeFnBRequests, ...bookingItems];
+    },
+    [activeFnBRequests, bookings],
   );
   const checkoutBookingId = useMemo(() => {
     if (!checkoutTable) {
@@ -235,7 +328,7 @@ export const DashboardView = () => {
                   <div key={booking.id} className="relative pl-6">
                     <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 border-amber-500 bg-surface-lowest"></div>
                     <p className="text-[13px] font-semibold text-neutral-800">
-                      {new Date(booking.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} -{' '}
+                      {formatBookingDate(booking.bookingDate || booking.startTime)} {formatClockTime(booking.startTime)} -{' '}
                       {booking.userFullName || booking.guestName || 'Khách vãng lai'}
                     </p>
                     <p className="mt-0.5 text-xs text-neutral-500">
@@ -275,8 +368,8 @@ export const DashboardView = () => {
               Yêu cầu F&amp;B
             </h3>
             <div className="space-y-3">
-              {activeFnBBookings.length > 0 ? (
-                activeFnBBookings.map((booking) => (
+              {activeFnBItems.length > 0 ? (
+                activeFnBItems.map((booking) => (
                   <div key={booking.id} className="flex gap-3 rounded-lg border border-neutral-100 bg-surface-low p-3">
                     <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
                       <Coffee size={16} />
@@ -290,7 +383,7 @@ export const DashboardView = () => {
                       <p className="mt-0.5 text-xs text-neutral-600">
                         Giá trị đơn: {booking.fnBTotal.toLocaleString()}đ
                       </p>
-                      <p className="mt-1 text-[10px] text-neutral-400">{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</p>
+                      <p className="mt-1 text-[10px] text-neutral-400">{formatClockTime(booking.updatedAt)}</p>
                     </div>
                   </div>
                 ))

@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import CustomerLayout from '../components/layout/CustomerLayout';
 import { MembershipPlan, PaymentMethod, ScreenProps } from '../types';
 import { useMembershipStore } from '../stores/membershipStore';
@@ -71,6 +71,7 @@ export default function Membership({ onNavigate }: ScreenProps) {
   const activeMembership = isAuthenticated ? myMembership : null;
   const [autoRenewOnSubscribe, setAutoRenewOnSubscribe] = useState(true);
   const membershipPaymentMethod: Extract<PaymentMethod, 'PayPal'> = 'PayPal';
+  const subscribeInFlight = useRef(false);
   const [feedback, setFeedback] = useState<{
     type: 'success' | 'error';
     message: string;
@@ -112,6 +113,10 @@ export default function Membership({ onNavigate }: ScreenProps) {
   }, [activeMembership, plans]);
 
   const handleSubscribe = async (planId: number) => {
+    if (subscribeInFlight.current || isLoading) {
+      return;
+    }
+
     if (!isAuthenticated) {
       setFeedback({
         type: 'error',
@@ -122,9 +127,13 @@ export default function Membership({ onNavigate }: ScreenProps) {
     }
 
     setFeedback(null);
+    subscribeInFlight.current = true;
 
     try {
-      const result = await subscribe(planId, autoRenewOnSubscribe, membershipPaymentMethod);
+      const selectedPlan = plans.find((plan) => plan.id === planId);
+      const methodForSubscription: Extract<PaymentMethod, 'Cash' | 'PayPal'> =
+        selectedPlan && selectedPlan.monthlyPrice <= 0 ? 'Cash' : membershipPaymentMethod;
+      const result = await subscribe(planId, autoRenewOnSubscribe, methodForSubscription);
 
       if (result.requiresRedirect) {
         if (!result.approvalUrl) {
@@ -151,6 +160,8 @@ export default function Membership({ onNavigate }: ScreenProps) {
         type: 'error',
         message: getErrorMessage(error, 'Không thể đăng ký gói thành viên lúc này.'),
       });
+    } finally {
+      subscribeInFlight.current = false;
     }
   };
 

@@ -11,6 +11,7 @@ type SignalRTableSlotGroup = {
 interface UseSignalROptions {
   floorPlanDate?: string | Date;
   tableSlotGroups?: SignalRTableSlotGroup[];
+  sessionIds?: Array<string | null | undefined>;
   onTableStatusChanged?: (tableId: number, newStatus: TableStatus) => void;
   onCategoryCapacityChanged?: (tableType: string, bookingDate: string) => void;
   onBookingAssigned?: (reservationId: string, tableId: number) => void;
@@ -48,6 +49,10 @@ export const useSignalR = (options: UseSignalROptions = {}) => {
         date: formatDateParam(group.date) ?? floorPlanDate,
       })),
     [floorPlanDate, options.tableSlotGroups],
+  );
+  const sessionIds = useMemo(
+    () => Array.from(new Set((options.sessionIds ?? []).filter((sessionId): sessionId is string => Boolean(sessionId)))),
+    [options.sessionIds],
   );
 
   useEffect(() => {
@@ -87,6 +92,7 @@ export const useSignalR = (options: UseSignalROptions = {}) => {
         await Promise.all(
           tableSlotGroups.map((group) => signalRService.joinTableSlotGroup(group.tableId, group.date)),
         );
+        await Promise.all(sessionIds.map((sessionId) => signalRService.joinSessionGroup(sessionId)));
       } catch (error) {
         console.error('Unable to subscribe to SignalR groups', error);
       }
@@ -104,6 +110,9 @@ export const useSignalR = (options: UseSignalROptions = {}) => {
       tableSlotGroups.forEach((group) => {
         void signalRService.leaveTableSlotGroup(group.tableId, group.date);
       });
+      sessionIds.forEach((sessionId) => {
+        void signalRService.leaveSessionGroup(sessionId);
+      });
     };
   }, [
     floorPlanDate,
@@ -111,6 +120,7 @@ export const useSignalR = (options: UseSignalROptions = {}) => {
     onCategoryCapacityChanged,
     onRunningTotalUpdated,
     onTableStatusChanged,
+    sessionIds,
     tableSlotGroups,
     updateTableStatus,
   ]);

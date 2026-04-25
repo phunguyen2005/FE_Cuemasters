@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import CustomerLayout from '../components/layout/CustomerLayout';
-import { ScreenProps, BookingStatus } from '../types';
+import { Booking, ScreenProps, BookingStatus } from '../types';
 import { useBookingStore } from '../stores/bookingStore';
 import {
   getBookingChannelLabel,
@@ -22,10 +22,107 @@ const statusFilters: Array<{ value: '' | BookingStatus; label: string }> = [
 const formatMoney = (value?: number | null) =>
   (value || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
-const formatDateTime = (value?: string | null) => {
+const VIETNAM_TIME_ZONE = 'Asia/Ho_Chi_Minh';
+
+interface LocalDateTimeParts {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+}
+
+const parseApiLocalDateTime = (value?: string | null): LocalDateTimeParts | null => {
+  if (!value) return null;
+
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?/);
+  if (!match) return null;
+
+  const [, year, month, day, hour = '0', minute = '0', second = '0'] = match;
+  const parts = {
+    year: Number(year),
+    month: Number(month),
+    day: Number(day),
+    hour: Number(hour),
+    minute: Number(minute),
+    second: Number(second),
+  };
+  const parsed = new Date(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+
+  if (
+    Number.isNaN(parsed.getTime()) ||
+    parsed.getFullYear() !== parts.year ||
+    parsed.getMonth() !== parts.month - 1 ||
+    parsed.getDate() !== parts.day ||
+    parsed.getHours() !== parts.hour ||
+    parsed.getMinutes() !== parts.minute ||
+    parsed.getSeconds() !== parts.second
+  ) {
+    return null;
+  }
+
+  return parts;
+};
+
+const padTimePart = (value: number) => value.toString().padStart(2, '0');
+
+const getScheduledLocalDate = (value?: string | null) => {
+  const parts = parseApiLocalDateTime(value);
+  if (!parts) return null;
+
+  return new Date(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+};
+
+const formatScheduledMonth = (value?: string | null) => {
+  const parts = parseApiLocalDateTime(value);
+  return parts ? parts.month.toString() : '--';
+};
+
+const formatScheduledDay = (value?: string | null) => {
+  const parts = parseApiLocalDateTime(value);
+  return parts ? parts.day.toString() : '--';
+};
+
+const formatScheduledTime = (value?: string | null) => {
+  const parts = parseApiLocalDateTime(value);
+  return parts ? `${parts.hour}:${padTimePart(parts.minute)}` : '--:--';
+};
+
+const formatScheduledDateTime = (value?: string | null) => {
+  const parts = parseApiLocalDateTime(value);
+  if (!parts) return value || '--';
+
+  return `${padTimePart(parts.day)}/${padTimePart(parts.month)}/${parts.year} ${formatScheduledTime(value)}`;
+};
+
+const getScheduledDurationHours = (startValue?: string | null, endValue?: string | null) => {
+  const startTime = getScheduledLocalDate(startValue);
+  const endTime = getScheduledLocalDate(endValue);
+
+  if (!startTime || !endTime) return 0;
+
+  return Math.max(0, (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60));
+};
+
+const hasExplicitTimeZone = (value: string) => /(?:z|[+-]\d{2}:?\d{2})$/i.test(value);
+
+const formatAuditDateTime = (value?: string | null) => {
   if (!value) return '--';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? value : date.toLocaleString('vi-VN');
+  const date = new Date(hasExplicitTimeZone(value) ? value : `${value}Z`);
+
+  return Number.isNaN(date.getTime())
+    ? value
+    : date.toLocaleString('vi-VN', {
+        timeZone: VIETNAM_TIME_ZONE,
+        hour12: false,
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+      });
 };
 
 export default function BookingHistory({ onNavigate }: ScreenProps) {
@@ -33,6 +130,8 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
   const [filter, setFilter] = useState<'' | BookingStatus>('');
   const [currentPage, setCurrentPage] = useState(1);
   const [expandedBookingId, setExpandedBookingId] = useState<string | null>(null);
+  const [pendingCancelBooking, setPendingCancelBooking] = useState<Booking | null>(null);
+  const [isCancelSubmitting, setIsCancelSubmitting] = useState(false);
   const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
 
   useEffect(() => {
@@ -48,18 +147,24 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
   };
 
   const handleCancelBooking = async (bookingId: string) => {
-    if (!window.confirm('Ban co chac chan muon huy luot dat cho nay khong?')) {
-      return;
-    }
-
+    setIsCancelSubmitting(true);
     const result = await cancelBooking(bookingId);
+    setIsCancelSubmitting(false);
+    setPendingCancelBooking(null);
+
     if (result.success) {
-      setFeedback({ type: 'success', message: result.message || 'Huy dat cho thanh cong.' });
+      setFeedback({
+        type: 'success',
+        message: result.message || 'Reservation cancelled. Deposit is non-refundable.',
+      });
       void fetchBookings(currentPage, 10, filter || undefined);
       return;
     }
 
-    setFeedback({ type: 'error', message: result.message });
+    setFeedback({
+      type: 'error',
+      message: result.message || 'Cannot cancel this booking right now.',
+    });
   };
 
   return (
@@ -116,13 +221,10 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
               </div>
             ) : (
               visibleBookings.map((booking) => {
-                const startTime = new Date(booking.startTime);
-                const endTime = new Date(booking.endTime);
-                const hoursUntilStart = (startTime.getTime() - Date.now()) / (1000 * 60 * 60);
-                const durationHours = Math.max(0, (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60));
+                const durationHours = getScheduledDurationHours(booking.startTime, booking.endTime);
                 const isActive = booking.status === 'Confirmed' || booking.status === 'InProgress';
                 const isExpanded = expandedBookingId === booking.id;
-                const canCancel = booking.status === 'Confirmed' && hoursUntilStart >= 2;
+                const canCancel = booking.status === 'Confirmed';
 
                 return (
                   <div
@@ -140,11 +242,11 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
                     <div className="flex flex-col gap-6 md:flex-row md:items-center">
                       <div className="w-24 flex-shrink-0 text-center md:text-left">
                         <p className="mb-1 text-xs font-bold uppercase tracking-widest text-secondary">
-                          Tháng {startTime.getMonth() + 1}
+                          Tháng {formatScheduledMonth(booking.startTime)}
                         </p>
-                        <p className="font-headline text-3xl font-black text-primary">{startTime.getDate()}</p>
+                        <p className="font-headline text-3xl font-black text-primary">{formatScheduledDay(booking.startTime)}</p>
                         <p className="mt-1 text-sm font-bold">
-                          {startTime.getHours()}:{startTime.getMinutes().toString().padStart(2, '0')}
+                          {formatScheduledTime(booking.startTime)}
                         </p>
                       </div>
 
@@ -182,7 +284,9 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
                         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-secondary">
                           <span className="material-symbols-outlined text-[14px]">payments</span>
                           <span>Cọc: {formatMoney(booking.depositAmount)}</span>
-                          {booking.status === 'NoShow' && <span className="font-medium text-error">(Mất cọc)</span>}
+                          {(booking.status === 'NoShow' || booking.depositForfeited) && (
+                            <span className="font-medium text-error">(Mất cọc)</span>
+                          )}
                         </div>
                       </div>
 
@@ -195,16 +299,11 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
                         </button>
                         {canCancel && (
                           <button
-                            onClick={() => void handleCancelBooking(booking.id)}
+                            onClick={() => setPendingCancelBooking(booking)}
                             className="whitespace-nowrap rounded-full bg-error/10 px-6 py-3 text-center text-xs font-bold uppercase tracking-widest text-error transition-colors hover:bg-error/20"
                           >
-                            Huy dat cho
+                            Hủy đặt chỗ
                           </button>
-                        )}
-                        {booking.status === 'Confirmed' && !canCancel && (
-                          <span className="text-center text-xs font-medium text-secondary">
-                            Khong the huy trong vong 2 gio truoc gio bat dau.
-                          </span>
                         )}
                       </div>
                     </div>
@@ -216,16 +315,16 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
                           {getBookingChannelLabel(booking.bookingType)}
                         </div>
                         <div>
-                          <span className="font-semibold text-on-surface">Tạo lúc:</span> {formatDateTime(booking.createdAt)}
+                          <span className="font-semibold text-on-surface">Tạo lúc:</span> {formatAuditDateTime(booking.createdAt)}
                         </div>
                         <div>
-                          <span className="font-semibold text-on-surface">Gán bàn lúc:</span> {formatDateTime(booking.assignedAt)}
+                          <span className="font-semibold text-on-surface">Gán bàn lúc:</span> {formatAuditDateTime(booking.assignedAt)}
                         </div>
                         <div>
-                          <span className="font-semibold text-on-surface">Nhận bàn:</span> {formatDateTime(booking.checkedInAt)}
+                          <span className="font-semibold text-on-surface">Nhận bàn:</span> {formatAuditDateTime(booking.checkedInAt)}
                         </div>
                         <div>
-                          <span className="font-semibold text-on-surface">Trả bàn:</span> {formatDateTime(booking.checkedOutAt)}
+                          <span className="font-semibold text-on-surface">Trả bàn:</span> {formatAuditDateTime(booking.checkedOutAt)}
                         </div>
                         <div>
                           <span className="font-semibold text-on-surface">Huấn luyện viên:</span> {booking.coach?.fullName || 'Không có'}
@@ -274,6 +373,46 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
               <span className="material-symbols-outlined text-sm">chevron_right</span>
             </button>
           </div>
+
+          {pendingCancelBooking && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4">
+              <div className="w-full max-w-md rounded-xl bg-surface-container-lowest p-6 shadow-2xl">
+                <h2 className="font-headline text-xl font-bold text-on-surface">
+                  Xác nhận hủy đặt chỗ
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-secondary">
+                  Hủy đặt chỗ sẽ không được hoàn tiền. Tiếp tục?
+                </p>
+                <div className="mt-4 rounded-lg border border-outline-variant/30 bg-surface-container-low p-3 text-sm text-secondary">
+                  <div className="font-semibold text-on-surface">
+                    {pendingCancelBooking.tableName
+                      ? `Bàn ${pendingCancelBooking.tableName}`
+                      : `${getTableTypeLabel(pendingCancelBooking.requestedTableType)} (xếp bàn khi tới)`}
+                  </div>
+                  <div>{formatScheduledDateTime(pendingCancelBooking.startTime)}</div>
+                  <div>Cọc: {formatMoney(pendingCancelBooking.depositAmount)}</div>
+                </div>
+                <div className="mt-6 flex justify-end gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setPendingCancelBooking(null)}
+                    disabled={isCancelSubmitting}
+                    className="rounded-full bg-surface-container-high px-5 py-2 text-sm font-bold text-on-surface transition-colors hover:bg-surface-container-low disabled:opacity-60"
+                  >
+                    Giữ đặt chỗ
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => void handleCancelBooking(pendingCancelBooking.id)}
+                    disabled={isCancelSubmitting}
+                    className="rounded-full bg-error px-5 py-2 text-sm font-bold text-white transition-colors hover:bg-error/90 disabled:opacity-60"
+                  >
+                    {isCancelSubmitting ? 'Đang hủy...' : 'Hủy và mất cọc'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </CustomerLayout>

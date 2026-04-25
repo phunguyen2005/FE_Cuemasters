@@ -1,6 +1,8 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import { KeyRound } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
+import { ChangePasswordModal } from './components/ChangePasswordModal';
 
 interface StaffPageShellProps {
   title?: string; // Kept for backward compatibility but unused in layout directly
@@ -18,6 +20,7 @@ const StaffPageShell: React.FC<StaffPageShellProps> = ({ children }) => {
   const navigate = useNavigate();
   const logout = useAuthStore((state) => state.logout);
   const user = useAuthStore((state) => state.user);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
 
   const handleBackToLogin = () => {
     logout();
@@ -62,6 +65,14 @@ const StaffPageShell: React.FC<StaffPageShellProps> = ({ children }) => {
                 {user?.fullName?.charAt(0)?.toUpperCase() ?? 'S'}
               </span>
             </div>
+            <button
+              onClick={() => setIsChangePasswordOpen(true)}
+              className="hidden rounded-full bg-surface-container-high p-2 text-on-surface transition-colors hover:bg-surface-container-highest md:block"
+              title="Đổi mật khẩu"
+              aria-label="Đổi mật khẩu"
+            >
+              <KeyRound size={16} />
+            </button>
             <button
               onClick={handleBackToLogin}
               className="ml-2 hidden rounded-full bg-surface-container-high px-4 py-2 text-sm font-bold text-on-surface transition-colors hover:bg-surface-container-highest md:block"
@@ -117,12 +128,23 @@ const StaffPageShell: React.FC<StaffPageShellProps> = ({ children }) => {
           </NavLink>
         ))}
         <button
+          onClick={() => setIsChangePasswordOpen(true)}
+          className="flex flex-col items-center gap-1 text-secondary"
+        >
+          <span className="text-[10px] font-bold uppercase">Mật khẩu</span>
+        </button>
+        <button
           onClick={handleBackToLogin}
           className="flex flex-col items-center gap-1 text-secondary"
         >
           <span className="text-[10px] font-bold uppercase">Thoát</span>
         </button>
       </nav>
+
+      <ChangePasswordModal
+        isOpen={isChangePasswordOpen}
+        onClose={() => setIsChangePasswordOpen(false)}
+      />
     </div>
   );
 };

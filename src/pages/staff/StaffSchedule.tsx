@@ -12,6 +12,39 @@ interface StaffScheduleItem {
   specificDate?: string | null;
 }
 
+interface StaffSessionItem {
+  id: string;
+  sessionDate: string;
+  startTime: string;
+  endTime: string;
+  studentName: string;
+  isGroupSession: boolean;
+  maxParticipants?: number | null;
+  isCompleted: boolean;
+}
+
+const BOOKED_LABEL = '\u0110\u00e3 \u0111\u01b0\u1ee3c \u0111\u1eb7t';
+
+const normalizeTime = (time: string) => time.slice(0, 5);
+
+const timesOverlap = (
+  startA: string,
+  endA: string,
+  startB: string,
+  endB: string,
+) => normalizeTime(startA) < normalizeTime(endB) && normalizeTime(endA) > normalizeTime(startB);
+
+const formatSessionRange = (session: StaffSessionItem) =>
+  `${normalizeTime(session.startTime)}-${normalizeTime(session.endTime)}`;
+
+const formatLocalDate = (date: Date) => {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+
+  return `${year}-${month}-${day}`;
+};
+
 const getErrorMessage = (error: unknown, fallbackMessage: string) => {
   if (
     typeof error === 'object' &&
@@ -42,7 +75,7 @@ const getWeekDays = () => {
     nextDate.setDate(today.getDate() + i);
     days.push({
       date: nextDate,
-      dateString: nextDate.toLocaleDateString('en-CA'),
+      dateString: formatLocalDate(nextDate),
       dayName: i === 0 ? 'Hôm nay' : `Thứ ${nextDate.getDay() === 0 ? 'CN' : nextDate.getDay() + 1}`,
       dayIndex: i,
       originalDayOfWeek: nextDate.getDay(),
@@ -65,6 +98,7 @@ const QUICK_PRESETS = [
 
 const StaffSchedule = () => {
   const [schedule, setSchedule] = useState<StaffScheduleItem[]>([]);
+  const [sessions, setSessions] = useState<StaffSessionItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [savingKey, setSavingKey] = useState<string | null>(null);
@@ -77,14 +111,24 @@ const StaffSchedule = () => {
 
   const formRef = useRef<HTMLDivElement>(null);
 
-  const loadSchedule = async () => {
-    setIsLoading(true);
+  const loadSchedule = async (showLoading = true) => {
+    if (showLoading) {
+      setIsLoading(true);
+    }
     setError(null);
     try {
-      const response = await staffService.getAvailability();
-      setSchedule(Array.isArray(response) ? response : []);
+      const [availabilityResponse, sessionsResponse] = await Promise.all([
+        staffService.getAvailability(),
+        staffService.getSessions(),
+      ]);
+
+      setSchedule(Array.isArray(availabilityResponse) ? availabilityResponse : []);
+      setSessions(Array.isArray(sessionsResponse) ? sessionsResponse : []);
     } catch (error) {
-      setSchedule([]);
+      if (showLoading) {
+        setSchedule([]);
+        setSessions([]);
+      }
       setError(getErrorMessage(error, 'Không thể tải lịch rảnh lúc này.'));
     } finally {
       setIsLoading(false);
@@ -93,6 +137,21 @@ const StaffSchedule = () => {
 
   useEffect(() => {
     void loadSchedule();
+    const refreshInterval = window.setInterval(() => {
+      void loadSchedule(false);
+    }, 30_000);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        void loadSchedule(false);
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    return () => {
+      window.clearInterval(refreshInterval);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
   }, []);
 
   const toggleDay = (index: number) => {
@@ -168,10 +227,25 @@ const StaffSchedule = () => {
     }
   };
 
-  const getDaySchedule = (dayOfWeek: number) => {
-    return schedule
-      .filter((slot) => slot.dayOfWeek === dayOfWeek)
+  const getDaySchedule = (day: (typeof weekDays)[number]) => {
+    const daySlots = schedule
+      .filter((slot) =>
+        slot.specificDate
+          ? slot.specificDate === day.dateString
+          : slot.dayOfWeek === day.originalDayOfWeek
+      )
       .sort((a, b) => a.startTime.localeCompare(b.startTime));
+    const daySessions = sessions
+      .filter((session) => session.sessionDate === day.dateString)
+      .sort((a, b) => a.startTime.localeCompare(b.startTime));
+    const standaloneSessions = daySessions.filter(
+      (session) =>
+        !daySlots.some((slot) =>
+          timesOverlap(slot.startTime, slot.endTime, session.startTime, session.endTime)
+        )
+    );
+
+    return { daySlots, daySessions, standaloneSessions };
   };
 
   const scrollToFormForDay = (index: number) => {
@@ -243,7 +317,7 @@ const StaffSchedule = () => {
               ) : (
                 <div className="space-y-12">
                   {weekDays.map((day) => {
-                    const daySlots = getDaySchedule(day.originalDayOfWeek);
+                    const { daySlots, daySessions, standaloneSessions } = getDaySchedule(day);
                     
                     return (
                       <div key={day.dayIndex} className="animate-in fade-in slide-in-from-bottom-2 duration-300 fill-mode-both">
@@ -266,19 +340,24 @@ const StaffSchedule = () => {
                           </button>
                         </div>
 
-                        {daySlots.length === 0 ? (
+                        {daySlots.length === 0 && standaloneSessions.length === 0 ? (
                           <div className="flex items-center justify-center rounded-lg border border-dashed border-outline-variant/20 bg-surface-container-lowest py-8 opacity-60">
                             <p className="font-body text-sm text-secondary">Chưa có xếp lịch cho ngày này.</p>
                           </div>
                         ) : (
                           <div className="space-y-4">
-                            {daySlots.map((slot) => (
+                            {daySlots.map((slot) => {
+                              const bookedSessions = daySessions.filter((session) =>
+                                timesOverlap(slot.startTime, slot.endTime, session.startTime, session.endTime)
+                              );
+
+                              return (
                               <div
                                 key={slot.id}
                                 className="group flex flex-col justify-between overflow-hidden rounded-xl bg-surface-container-low p-5 transition-colors hover:bg-surface-container sm:flex-row sm:items-center"
                               >
-                                <div className="flex items-center gap-6">
-                                  <div className="flex flex-col">
+                                <div className="flex min-w-0 items-center gap-6">
+                                  <div className="flex min-w-0 flex-col">
                                     <p className="font-headline text-lg font-bold text-on-surface">
                                       {slot.startTime} - {slot.endTime}
                                     </p>
@@ -303,6 +382,18 @@ const StaffSchedule = () => {
                                         </span>
                                       )}
                                     </div>
+                                    {bookedSessions.length > 0 && (
+                                      <div className="mt-3 flex flex-wrap gap-2">
+                                        {bookedSessions.map((session) => (
+                                          <span
+                                            key={`${slot.id}-${session.id}`}
+                                            className="inline-block max-w-full break-words rounded-md border border-amber-300/70 bg-amber-100 px-2.5 py-1 font-body text-[11px] font-bold leading-relaxed text-amber-800"
+                                          >
+                                            {BOOKED_LABEL}: {session.studentName}{' \u00b7 '}{formatSessionRange(session)}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    )}
                                   </div>
                                 </div>
                                 <div className="mt-4 flex items-center justify-end sm:mt-0">
@@ -314,6 +405,22 @@ const StaffSchedule = () => {
                                   >
                                     {savingKey === `delete-${slot.id}` ? <Loader2 size={18} className="animate-spin" /> : <Trash2 size={18} />}
                                   </button>
+                                </div>
+                              </div>
+                              );
+                            })}
+                            {standaloneSessions.map((session) => (
+                              <div
+                                key={`standalone-${session.id}-${session.sessionDate}-${session.startTime}`}
+                                className="flex flex-col justify-between overflow-hidden rounded-xl border border-amber-300/70 bg-amber-50 p-5 text-amber-950 sm:flex-row sm:items-center"
+                              >
+                                <div className="flex min-w-0 flex-col">
+                                  <p className="font-headline text-lg font-bold">
+                                    {normalizeTime(session.startTime)} - {normalizeTime(session.endTime)}
+                                  </p>
+                                  <span className="mt-2 inline-block max-w-full break-words rounded-md bg-amber-100 px-2.5 py-1 font-body text-[11px] font-bold leading-relaxed text-amber-800">
+                                    {BOOKED_LABEL}: {session.studentName}{' \u00b7 '}{formatSessionRange(session)}
+                                  </span>
                                 </div>
                               </div>
                             ))}

@@ -11,26 +11,16 @@ import { WalkInModal } from '../components/WalkInModal';
 import { useSignalR } from '../../../hooks/useSignalR';
 import { getTableStatusLabel, getTableTypeLabel } from '../../../utils/labels';
 import { formatLocalDate } from '../../../utils/date';
+import { ensureUtc, formatScheduledTime, formatVietnamTime } from '../../../utils/datetime';
 
 const itemsPerPage = 10;
-
-const formatClockTime = (value?: string | null) => {
-  if (!value) {
-    return '--:--';
-  }
-
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime())
-    ? value
-    : parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
 
 const LiveElapsedTime = ({ startTime }: { startTime: string }) => {
   const [elapsed, setElapsed] = useState('');
 
   useEffect(() => {
     const update = () => {
-      const diff = Math.max(0, Date.now() - new Date(startTime).getTime());
+      const diff = Math.max(0, Date.now() - new Date(ensureUtc(startTime)).getTime());
       const minutes = Math.floor(diff / 60000);
       const hours = Math.floor(minutes / 60);
       setElapsed(hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`);
@@ -419,7 +409,7 @@ export const TablesView = () => {
                   </span>
                 </div>
                 <div className="mb-4 flex items-center gap-1 text-sm text-neutral-500">
-                  <Clock size={14} /> Giờ: {formatClockTime(booking.startTime)} - {formatClockTime(booking.endTime)}
+                  <Clock size={14} /> Giờ: {formatScheduledTime(booking.startTime)} - {formatScheduledTime(booking.endTime)}
                 </div>
                 <div className="flex gap-2">
                   <button
@@ -595,7 +585,7 @@ export const TablesView = () => {
                             <div className="mt-1 flex items-center text-xs text-neutral-500">
                               <span className="flex items-center gap-1">
                                 <Clock size={12} />
-                                Bắt đầu {table.currentSessionStartedAt ? formatClockTime(table.currentSessionStartedAt) : '--:--'}
+                                Bắt đầu {table.currentSessionStartedAt ? formatVietnamTime(table.currentSessionStartedAt) : '--:--'}
                               </span>
                               {table.currentSessionStartedAt && <LiveElapsedTime startTime={table.currentSessionStartedAt} />}
                             </div>
@@ -609,7 +599,7 @@ export const TablesView = () => {
                               <Clock size={12} />
                               <span>
                                 {table.nextCustomerName ? 'Tới lúc' : 'Giờ cao điểm lúc'}{' '}
-                                {table.nextBookingStartTime ? formatClockTime(table.nextBookingStartTime) : '--:--'}
+                                {table.nextBookingStartTime ? formatScheduledTime(table.nextBookingStartTime) : '--:--'}
                               </span>
                             </div>
                             {!table.nextCustomerName && (
@@ -973,7 +963,7 @@ export const TablesView = () => {
                       {booking.guestName || booking.userFullName || 'Khách online'}
                     </h4>
                     <div className="mt-1 flex items-center gap-1 text-sm text-amber-700/80">
-                      <Clock size={14} /> {formatClockTime(booking.startTime)} - {formatClockTime(booking.endTime)}
+                      <Clock size={14} /> {formatScheduledTime(booking.startTime)} - {formatScheduledTime(booking.endTime)}
                     </div>
                   </div>
                   <button

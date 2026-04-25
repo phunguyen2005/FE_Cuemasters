@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Eye, TrendingDown, TrendingUp, X } from 'lucide-react';
+import { Eye, X } from 'lucide-react';
 import { adminService } from '../../../services/adminService';
 import {
   AdminAnalytics,
@@ -7,6 +7,7 @@ import {
   AdminInvoiceListResponse,
   InvoiceDetail,
 } from '../../../types';
+import { formatVietnamDateTime } from '../../../utils/datetime';
 
 type RevenueStructureItem = {
   label: string;
@@ -73,54 +74,111 @@ const getOpacityClass = (value: number) => {
   return OPACITY_CLASS_BY_STEP[stepped] || 'opacity-100';
 };
 
-const startOfDayIso = (value: Date) => {
-  const date = new Date(value);
-  date.setHours(0, 0, 0, 0);
-  return date.toISOString();
+const VIETNAM_TIME_ZONE = 'Asia/Ho_Chi_Minh';
+const VIETNAM_UTC_OFFSET_HOURS = 7;
+
+type DateParts = {
+  year: number;
+  month: number;
+  day: number;
 };
 
-const endOfDayIso = (value: Date) => {
-  const date = new Date(value);
-  date.setHours(23, 59, 59, 999);
-  return date.toISOString();
+const vietnamDateFormatter = new Intl.DateTimeFormat('en-CA', {
+  timeZone: VIETNAM_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
+
+const getVietnamDateParts = (value = new Date()): DateParts => {
+  const parts = vietnamDateFormatter.formatToParts(value);
+  return {
+    year: Number(parts.find((part) => part.type === 'year')?.value),
+    month: Number(parts.find((part) => part.type === 'month')?.value),
+    day: Number(parts.find((part) => part.type === 'day')?.value),
+  };
 };
+
+const parseDateInput = (value: string): DateParts | null => {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return null;
+
+  const [, year, month, day] = match;
+  const parts = {
+    year: Number(year),
+    month: Number(month),
+    day: Number(day),
+  };
+  const parsed = new Date(Date.UTC(parts.year, parts.month - 1, parts.day));
+
+  return parsed.getUTCFullYear() === parts.year &&
+    parsed.getUTCMonth() === parts.month - 1 &&
+    parsed.getUTCDate() === parts.day
+    ? parts
+    : null;
+};
+
+const addDays = (parts: DateParts, days: number): DateParts => {
+  const date = new Date(Date.UTC(parts.year, parts.month - 1, parts.day + days));
+  return {
+    year: date.getUTCFullYear(),
+    month: date.getUTCMonth() + 1,
+    day: date.getUTCDate(),
+  };
+};
+
+const getDaysInMonth = (parts: DateParts) =>
+  new Date(Date.UTC(parts.year, parts.month, 0)).getUTCDate();
+
+const compareDateParts = (left: DateParts, right: DateParts) =>
+  Date.UTC(left.year, left.month - 1, left.day) -
+  Date.UTC(right.year, right.month - 1, right.day);
+
+const diffInDays = (from: DateParts, to: DateParts) =>
+  Math.floor(compareDateParts(to, from) / 86400000);
+
+const startOfVietnamDayIso = (parts: DateParts) =>
+  new Date(Date.UTC(parts.year, parts.month - 1, parts.day, -VIETNAM_UTC_OFFSET_HOURS)).toISOString();
+
+const endOfVietnamDayIso = (parts: DateParts) =>
+  new Date(
+    Date.UTC(parts.year, parts.month - 1, parts.day, 23 - VIETNAM_UTC_OFFSET_HOURS, 59, 59, 999),
+  ).toISOString();
 
 const getRangeForFilter = (
   dateFilter: 'today' | 'week' | 'month' | 'custom',
   customRange: { from: string; to: string },
 ) => {
-  const now = new Date();
+  const today = getVietnamDateParts();
 
   if (dateFilter === 'today') {
     return {
-      from: startOfDayIso(now),
-      to: endOfDayIso(now),
+      from: startOfVietnamDayIso(today),
+      to: endOfVietnamDayIso(today),
       period: 'day',
     };
   }
 
   if (dateFilter === 'week') {
-    const monday = new Date(now);
-    const day = monday.getDay();
-    const diff = day === 0 ? -6 : 1 - day;
-    monday.setDate(monday.getDate() + diff);
-    const sunday = new Date(monday);
-    sunday.setDate(monday.getDate() + 6);
+    const dayOfWeek = new Date(Date.UTC(today.year, today.month - 1, today.day)).getUTCDay();
+    const daysFromMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+    const monday = addDays(today, -daysFromMonday);
+    const sunday = addDays(monday, 6);
 
     return {
-      from: startOfDayIso(monday),
-      to: endOfDayIso(sunday),
+      from: startOfVietnamDayIso(monday),
+      to: endOfVietnamDayIso(sunday),
       period: 'week',
     };
   }
 
   if (dateFilter === 'month') {
-    const start = new Date(now.getFullYear(), now.getMonth(), 1);
-    const end = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+    const start = { year: today.year, month: today.month, day: 1 };
+    const end = { year: today.year, month: today.month, day: getDaysInMonth(today) };
 
     return {
-      from: startOfDayIso(start),
-      to: endOfDayIso(end),
+      from: startOfVietnamDayIso(start),
+      to: endOfVietnamDayIso(end),
       period: 'month',
     };
   }
@@ -129,17 +187,19 @@ const getRangeForFilter = (
     return null;
   }
 
-  const fromDate = new Date(customRange.from);
-  const toDate = new Date(customRange.to);
-  const diffInDays = Math.max(
-    0,
-    Math.floor((toDate.getTime() - fromDate.getTime()) / 86400000),
-  );
-  const period = diffInDays <= 1 ? 'day' : diffInDays <= 7 ? 'week' : 'month';
+  const fromDate = parseDateInput(customRange.from);
+  const toDate = parseDateInput(customRange.to);
+
+  if (!fromDate || !toDate || compareDateParts(fromDate, toDate) > 0) {
+    return null;
+  }
+
+  const rangeDays = Math.max(0, diffInDays(fromDate, toDate));
+  const period = rangeDays <= 1 ? 'day' : rangeDays <= 7 ? 'week' : 'month';
 
   return {
-    from: startOfDayIso(fromDate),
-    to: endOfDayIso(toDate),
+    from: startOfVietnamDayIso(fromDate),
+    to: endOfVietnamDayIso(toDate),
     period,
   };
 };
@@ -169,19 +229,8 @@ const getErrorMessage = (error: unknown, fallbackMessage: string) => {
 const formatCurrency = (value: number | null | undefined) =>
   `${Number(value || 0).toLocaleString()}đ`;
 
-const formatDateTime = (value?: string | null) => {
-  if (!value) return '--';
-  return new Date(value).toLocaleString('vi-VN', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  });
-};
-
 const formatDateRange = (start?: string | null, end?: string | null) =>
-  `${formatDateTime(start)} - ${formatDateTime(end)}`;
+  `${formatVietnamDateTime(start)} - ${formatVietnamDateTime(end)}`;
 
 export const RevenueView = () => {
   const [stats, setStats] = useState<AdminDashboardStats | null>(null);
@@ -216,7 +265,7 @@ export const RevenueView = () => {
     setIsLoading(true);
 
     Promise.all([
-      adminService.getStats({ from: activeRange.from, to: activeRange.to }),
+      adminService.getStats({ from: activeRange.from, to: activeRange.to, basis }),
       adminService.getAnalytics({
         from: activeRange.from,
         to: activeRange.to,
@@ -378,6 +427,9 @@ export const RevenueView = () => {
     100,
     Math.round((totalRevenuePeriod / 1000000000) * 100),
   );
+  const hasRevenueSource = revenueStructure.some((item) => item.amount > 0);
+  const hasRevenueSeries = analytics.revenueByPeriod?.some((point) => point.revenue > 0) ?? false;
+  const hasOccupancyData = analytics.occupancyHeatmap?.some((cell) => cell.bookingCount > 0 || cell.occupancyRate > 0) ?? false;
 
   return (
     <div className="animate-in fade-in space-y-6 p-8 duration-500">
@@ -457,26 +509,22 @@ export const RevenueView = () => {
           {
             label: 'Tổng doanh thu',
             value: `${stats.revenue.toLocaleString()}đ`,
-            trend: '+12.5%',
-            isUp: true,
+            helper: basis === 'payment' ? 'Theo ngày thanh toán' : 'Theo ngày sử dụng',
           },
           {
             label: 'Bàn trống',
-            value: `${stats.availableTables}`,
-            trend: '+5.2%',
-            isUp: true,
+            value: `${stats.availableTables}/${stats.totalTables}`,
+            helper: 'Sẵn sàng theo trạng thái thực',
           },
           {
             label: 'Phiên đang hoạt động',
             value: `${stats.activeSessions}`,
-            trend: '-2.1%',
-            isUp: false,
+            helper: 'Đang chạy trên bàn',
           },
           {
-            label: 'Tổng lượt đặt',
+            label: 'Hóa đơn trong kỳ',
             value: `${stats.totalBookings}`,
-            trend: '+8.4%',
-            isUp: true,
+            helper: 'Đã chốt thanh toán',
           },
         ].map((kpi) => (
           <div
@@ -484,23 +532,10 @@ export const RevenueView = () => {
             className="rounded-2xl border border-neutral-100 bg-surface-lowest p-6 shadow-sm"
           >
             <p className="mb-2 text-sm font-medium text-neutral-500">{kpi.label}</p>
-            <div className="flex items-end justify-between">
-              <h3 className="font-headline text-3xl font-bold text-neutral-900">
-                {kpi.value}
-              </h3>
-              <div
-                className={`flex items-center text-sm font-medium ${
-                  kpi.isUp ? 'text-tertiary' : 'text-primary'
-                }`}
-              >
-                {kpi.isUp ? (
-                  <TrendingUp size={16} className="mr-1" />
-                ) : (
-                  <TrendingDown size={16} className="mr-1" />
-                )}
-                {kpi.trend}
-              </div>
-            </div>
+            <h3 className="font-headline text-3xl font-bold text-neutral-900">
+              {kpi.value}
+            </h3>
+            <p className="mt-2 text-xs text-neutral-400">{kpi.helper}</p>
           </div>
         ))}
       </div>
@@ -509,7 +544,8 @@ export const RevenueView = () => {
         <div className="rounded-2xl border border-neutral-100 bg-surface-lowest p-6 shadow-sm">
           <h3 className="mb-6 font-headline text-lg font-bold">Cơ cấu doanh thu</h3>
           <div className="space-y-5">
-            {revenueStructure.map((item) => (
+            {hasRevenueSource ? (
+              revenueStructure.map((item) => (
               <div key={item.label}>
                 <div className="mb-2 flex justify-between text-sm">
                   <span className="font-medium text-neutral-700">{item.label}</span>
@@ -524,7 +560,12 @@ export const RevenueView = () => {
                   ></div>
                 </div>
               </div>
-            ))}
+              ))
+            ) : (
+              <div className="rounded-xl border border-dashed border-neutral-200 bg-neutral-50 p-6 text-center text-sm text-neutral-500">
+                Chưa có doanh thu đã chốt trong khoảng thời gian này.
+              </div>
+            )}
           </div>
         </div>
 
@@ -535,6 +576,8 @@ export const RevenueView = () => {
               {analytics.period} / {analytics.basis}
             </span>
           </div>
+          {hasRevenueSeries ? (
+            <>
           <div className="mt-4 flex h-48 items-end justify-between gap-2">
             {analytics.revenueByPeriod?.map((point) => {
               const heightPercent = maxRevenue > 0 ? (point.revenue / maxRevenue) * 100 : 0;
@@ -559,12 +602,19 @@ export const RevenueView = () => {
               </span>
             ))}
           </div>
+            </>
+          ) : (
+            <div className="mt-4 flex h-48 items-center justify-center rounded-xl border border-dashed border-neutral-200 bg-neutral-50 text-sm text-neutral-500">
+              Chưa có doanh thu theo bộ lọc hiện tại.
+            </div>
+          )}
         </div>
       </div>
 
       <div className="grid grid-cols-4 gap-6">
         <div className="col-span-2 rounded-2xl border border-neutral-100 bg-surface-lowest p-6 shadow-sm">
           <h3 className="mb-4 font-headline text-lg font-bold">Bản đồ nhiệt giờ cao điểm</h3>
+          {hasOccupancyData ? (
           <div className="grid grid-cols-8 gap-1">
             <div className="col-span-1 grid grid-rows-7 gap-1 pt-6 pr-2 text-right text-xs font-medium text-neutral-400">
               <div>CN</div>
@@ -586,13 +636,22 @@ export const RevenueView = () => {
               </div>
               <div className="grid grid-rows-7 gap-1">
                 {heatmapMatrix.map((row, rowIndex) => (
-                  <div key={rowIndex} className="grid h-4 grid-cols-24 gap-1">
+                  <div
+                    key={rowIndex}
+                    className="grid h-4 gap-1"
+                    style={{ gridTemplateColumns: 'repeat(24, minmax(0, 1fr))' }}
+                  >
                     {row.map((rate, columnIndex) => {
+                      const occupancyRate = Number(rate);
                       return (
                         <div
                           key={columnIndex}
-                          className={`rounded-sm bg-primary ${getOpacityClass(Number(rate))}`}
-                          title={`${rate}%`}
+                          className={
+                            occupancyRate <= 0
+                              ? 'rounded-sm bg-neutral-100'
+                              : `rounded-sm bg-primary ${getOpacityClass(occupancyRate)}`
+                          }
+                          title={`${occupancyRate}%`}
                         ></div>
                       );
                     })}
@@ -601,10 +660,16 @@ export const RevenueView = () => {
               </div>
             </div>
           </div>
+          ) : (
+            <div className="flex h-48 items-center justify-center rounded-xl border border-dashed border-neutral-200 bg-neutral-50 text-sm text-neutral-500">
+              Chưa có dữ liệu phiên chơi trong khoảng thời gian này.
+            </div>
+          )}
         </div>
 
         <div className="rounded-2xl border border-neutral-100 bg-surface-lowest p-6 shadow-sm">
           <h3 className="mb-6 font-headline text-lg font-bold">Xu hướng lấp đầy</h3>
+          {hasOccupancyData ? (
           <div className="space-y-4">
             {[
               'Sáng (08:00 - 12:00)',
@@ -626,6 +691,11 @@ export const RevenueView = () => {
               );
             })}
           </div>
+          ) : (
+            <div className="flex h-40 items-center justify-center rounded-xl border border-dashed border-neutral-200 bg-neutral-50 px-4 text-center text-sm text-neutral-500">
+              Chưa có dữ liệu lấp đầy.
+            </div>
+          )}
         </div>
 
         <div className="relative flex flex-col justify-between overflow-hidden rounded-2xl bg-primary p-6 text-white shadow-md">
@@ -740,7 +810,7 @@ export const RevenueView = () => {
                         {invoice.paymentMethod || '--'}
                       </p>
                       <p className="text-xs text-neutral-500">
-                        {invoice.paymentStatus || '--'} · {formatDateTime(invoice.paymentCompletedAt)}
+                        {invoice.paymentStatus || '--'} · {formatVietnamDateTime(invoice.paymentCompletedAt)}
                       </p>
                     </td>
                     <td className="p-4 text-right font-bold text-neutral-900">
@@ -944,7 +1014,7 @@ export const RevenueView = () => {
                                 {payment.method || '--'} / {payment.status}
                               </p>
                               <p className="text-xs text-neutral-500">
-                                {payment.type || '--'} · {formatDateTime(payment.completedAt)}
+                                {payment.type || '--'} · {formatVietnamDateTime(payment.completedAt)}
                               </p>
                               {payment.notes && (
                                 <p className="mt-1 text-xs text-neutral-500">{payment.notes}</p>

@@ -24,6 +24,10 @@ interface DateRangeParams {
   to?: string;
 }
 
+interface StatsParams extends DateRangeParams {
+  basis?: 'service' | 'payment';
+}
+
 interface AnalyticsParams extends DateRangeParams {
   period?: string;
   basis?: 'service' | 'payment';
@@ -45,7 +49,7 @@ interface BookingQueryParams extends DateRangeParams {
 }
 
 export const adminService = {
-  getStats: (params?: DateRangeParams): Promise<AdminDashboardStats> =>
+  getStats: (params?: StatsParams): Promise<AdminDashboardStats> =>
     api.get('/admin/dashboard/stats', { params }).then((res) => res.data),
   getTables: (): Promise<AdminTable[]> =>
     api.get<AdminTable[]>('/admin/tables').then((res) => res.data),

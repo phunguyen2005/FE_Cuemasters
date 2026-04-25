@@ -9,6 +9,12 @@ import {
   getPaymentStatusLabel,
   getTableTypeLabel,
 } from '../utils/labels';
+import {
+  formatScheduledDate,
+  formatScheduledDateParts,
+  formatScheduledTime,
+  formatVietnamDateTime,
+} from '../utils/datetime';
 
 const statusFilters: Array<{ value: '' | BookingStatus; label: string }> = [
   { value: '', label: 'Tất cả' },
@@ -22,107 +28,29 @@ const statusFilters: Array<{ value: '' | BookingStatus; label: string }> = [
 const formatMoney = (value?: number | null) =>
   (value || 0).toLocaleString('vi-VN', { style: 'currency', currency: 'VND' });
 
-const VIETNAM_TIME_ZONE = 'Asia/Ho_Chi_Minh';
-
-interface LocalDateTimeParts {
-  year: number;
-  month: number;
-  day: number;
-  hour: number;
-  minute: number;
-  second: number;
-}
-
-const parseApiLocalDateTime = (value?: string | null): LocalDateTimeParts | null => {
-  if (!value) return null;
-
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?/);
-  if (!match) return null;
-
-  const [, year, month, day, hour = '0', minute = '0', second = '0'] = match;
-  const parts = {
-    year: Number(year),
-    month: Number(month),
-    day: Number(day),
-    hour: Number(hour),
-    minute: Number(minute),
-    second: Number(second),
-  };
-  const parsed = new Date(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
-
-  if (
-    Number.isNaN(parsed.getTime()) ||
-    parsed.getFullYear() !== parts.year ||
-    parsed.getMonth() !== parts.month - 1 ||
-    parsed.getDate() !== parts.day ||
-    parsed.getHours() !== parts.hour ||
-    parsed.getMinutes() !== parts.minute ||
-    parsed.getSeconds() !== parts.second
-  ) {
-    return null;
-  }
-
-  return parts;
-};
-
-const padTimePart = (value: number) => value.toString().padStart(2, '0');
-
-const getScheduledLocalDate = (value?: string | null) => {
-  const parts = parseApiLocalDateTime(value);
-  if (!parts) return null;
-
-  return new Date(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
-};
-
-const formatScheduledMonth = (value?: string | null) => {
-  const parts = parseApiLocalDateTime(value);
-  return parts ? parts.month.toString() : '--';
-};
-
-const formatScheduledDay = (value?: string | null) => {
-  const parts = parseApiLocalDateTime(value);
-  return parts ? parts.day.toString() : '--';
-};
-
-const formatScheduledTime = (value?: string | null) => {
-  const parts = parseApiLocalDateTime(value);
-  return parts ? `${parts.hour}:${padTimePart(parts.minute)}` : '--:--';
-};
-
-const formatScheduledDateTime = (value?: string | null) => {
-  const parts = parseApiLocalDateTime(value);
-  if (!parts) return value || '--';
-
-  return `${padTimePart(parts.day)}/${padTimePart(parts.month)}/${parts.year} ${formatScheduledTime(value)}`;
-};
-
 const getScheduledDurationHours = (startValue?: string | null, endValue?: string | null) => {
-  const startTime = getScheduledLocalDate(startValue);
-  const endTime = getScheduledLocalDate(endValue);
+  const startParts = formatScheduledDateParts(startValue);
+  const endParts = formatScheduledDateParts(endValue);
 
-  if (!startTime || !endTime) return 0;
+  if (!startParts || !endParts) return 0;
 
+  const startTime = new Date(
+    startParts.year,
+    startParts.month - 1,
+    startParts.day,
+    startParts.hour,
+    startParts.minute,
+    startParts.second,
+  );
+  const endTime = new Date(
+    endParts.year,
+    endParts.month - 1,
+    endParts.day,
+    endParts.hour,
+    endParts.minute,
+    endParts.second,
+  );
   return Math.max(0, (endTime.getTime() - startTime.getTime()) / (1000 * 60 * 60));
-};
-
-const hasExplicitTimeZone = (value: string) => /(?:z|[+-]\d{2}:?\d{2})$/i.test(value);
-
-const formatAuditDateTime = (value?: string | null) => {
-  if (!value) return '--';
-  const date = new Date(hasExplicitTimeZone(value) ? value : `${value}Z`);
-
-  return Number.isNaN(date.getTime())
-    ? value
-    : date.toLocaleString('vi-VN', {
-        timeZone: VIETNAM_TIME_ZONE,
-        hour12: false,
-        hour: '2-digit',
-        minute: '2-digit',
-        second: '2-digit',
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-      });
 };
 
 export default function BookingHistory({ onNavigate }: ScreenProps) {
@@ -221,6 +149,7 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
               </div>
             ) : (
               visibleBookings.map((booking) => {
+                const scheduledParts = formatScheduledDateParts(booking.startTime);
                 const durationHours = getScheduledDurationHours(booking.startTime, booking.endTime);
                 const isActive = booking.status === 'Confirmed' || booking.status === 'InProgress';
                 const isExpanded = expandedBookingId === booking.id;
@@ -242,9 +171,9 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
                     <div className="flex flex-col gap-6 md:flex-row md:items-center">
                       <div className="w-24 flex-shrink-0 text-center md:text-left">
                         <p className="mb-1 text-xs font-bold uppercase tracking-widest text-secondary">
-                          Tháng {formatScheduledMonth(booking.startTime)}
+                          Tháng {scheduledParts?.month ?? '--'}
                         </p>
-                        <p className="font-headline text-3xl font-black text-primary">{formatScheduledDay(booking.startTime)}</p>
+                        <p className="font-headline text-3xl font-black text-primary">{scheduledParts?.day ?? '--'}</p>
                         <p className="mt-1 text-sm font-bold">
                           {formatScheduledTime(booking.startTime)}
                         </p>
@@ -315,16 +244,16 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
                           {getBookingChannelLabel(booking.bookingType)}
                         </div>
                         <div>
-                          <span className="font-semibold text-on-surface">Tạo lúc:</span> {formatAuditDateTime(booking.createdAt)}
+                          <span className="font-semibold text-on-surface">Tạo lúc:</span> {formatVietnamDateTime(booking.createdAt)}
                         </div>
                         <div>
-                          <span className="font-semibold text-on-surface">Gán bàn lúc:</span> {formatAuditDateTime(booking.assignedAt)}
+                          <span className="font-semibold text-on-surface">Gán bàn lúc:</span> {formatVietnamDateTime(booking.assignedAt)}
                         </div>
                         <div>
-                          <span className="font-semibold text-on-surface">Nhận bàn:</span> {formatAuditDateTime(booking.checkedInAt)}
+                          <span className="font-semibold text-on-surface">Nhận bàn:</span> {formatVietnamDateTime(booking.checkedInAt)}
                         </div>
                         <div>
-                          <span className="font-semibold text-on-surface">Trả bàn:</span> {formatAuditDateTime(booking.checkedOutAt)}
+                          <span className="font-semibold text-on-surface">Trả bàn:</span> {formatVietnamDateTime(booking.checkedOutAt)}
                         </div>
                         <div>
                           <span className="font-semibold text-on-surface">Huấn luyện viên:</span> {booking.coach?.fullName || 'Không có'}
@@ -389,7 +318,7 @@ export default function BookingHistory({ onNavigate }: ScreenProps) {
                       ? `Bàn ${pendingCancelBooking.tableName}`
                       : `${getTableTypeLabel(pendingCancelBooking.requestedTableType)} (xếp bàn khi tới)`}
                   </div>
-                  <div>{formatScheduledDateTime(pendingCancelBooking.startTime)}</div>
+                  <div>{formatScheduledDate(pendingCancelBooking.startTime)} {formatScheduledTime(pendingCancelBooking.startTime)}</div>
                   <div>Cọc: {formatMoney(pendingCancelBooking.depositAmount)}</div>
                 </div>
                 <div className="mt-6 flex justify-end gap-3">

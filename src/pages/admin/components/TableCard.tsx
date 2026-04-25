@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Clock, Users } from 'lucide-react';
 import { AdminTable } from '../../../types';
+import { ensureUtc, formatScheduledTime, formatVietnamTime } from '../../../utils/datetime';
 import { getTableStatusLabel, getTableTypeLabel } from '../../../utils/labels';
 
 const formatElapsed = (minutes: number): string => {
@@ -85,16 +86,10 @@ export const TableCard = ({
           <span className="font-medium text-neutral-900">
             {status === 'Reserved'
               ? table.nextBookingStartTime
-                ? new Date(table.nextBookingStartTime).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
+                ? formatScheduledTime(table.nextBookingStartTime)
                 : '--:--'
               : table.currentSessionStartedAt
-                ? new Date(table.currentSessionStartedAt).toLocaleTimeString([], {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
+                ? formatVietnamTime(table.currentSessionStartedAt)
                 : '--:--'}
           </span>
         </div>
@@ -106,7 +101,7 @@ export const TableCard = ({
               {formatElapsed(
                 Math.max(
                   0,
-                  Math.floor((now - new Date(table.currentSessionStartedAt).getTime()) / 60000),
+                  Math.floor((now - new Date(ensureUtc(table.currentSessionStartedAt)).getTime()) / 60000),
                 ),
               )}
             </span>

@@ -8,6 +8,7 @@ import { InSessionOrderPanel } from '../components/InSessionOrderPanel';
 import { CheckoutPanel } from '../components/CheckoutPanel';
 import { getTableTypeLabel } from '../../../utils/labels';
 import { formatLocalDate } from '../../../utils/date';
+import { formatScheduledDate, formatScheduledDateParts, formatScheduledTime, formatVietnamTime } from '../../../utils/datetime';
 
 const getTodayDate = () => formatLocalDate();
 
@@ -20,26 +21,11 @@ const getTodayRange = () => {
   return { from: start.toISOString(), to: end.toISOString() };
 };
 
-const formatClockTime = (value?: string | null) => {
-  if (!value) return '--:--';
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime())
-    ? value
-    : parsed.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-};
-
-const formatBookingDate = (value?: string | null) => {
-  if (!value) return '--/--/----';
-  const [datePart] = value.split('T');
-  const [year, month, day] = datePart.split('-').map(Number);
-  const parsed =
-    year && month && day
-      ? new Date(year, month - 1, day)
-      : new Date(value);
-
-  return Number.isNaN(parsed.getTime())
-    ? value
-    : parsed.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+const getScheduledDateTime = (value?: string | null) => {
+  const parts = formatScheduledDateParts(value);
+  return parts
+    ? new Date(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second)
+    : null;
 };
 
 const getErrorMessage = (error: unknown, fallbackMessage: string) => {
@@ -189,8 +175,15 @@ export const DashboardView = () => {
   const upcomingBookings = useMemo(
     () =>
       bookings
-        .filter((booking) => booking.status === 'Confirmed' && new Date(booking.startTime) > new Date())
-        .sort((left, right) => new Date(left.startTime).getTime() - new Date(right.startTime).getTime())
+        .filter((booking) => {
+          const startTime = getScheduledDateTime(booking.startTime);
+          return booking.status === 'Confirmed' && startTime !== null && startTime > new Date();
+        })
+        .sort((left, right) => {
+          const leftStart = getScheduledDateTime(left.startTime)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+          const rightStart = getScheduledDateTime(right.startTime)?.getTime() ?? Number.MAX_SAFE_INTEGER;
+          return leftStart - rightStart;
+        })
         .slice(0, 5),
     [bookings],
   );
@@ -328,7 +321,7 @@ export const DashboardView = () => {
                   <div key={booking.id} className="relative pl-6">
                     <div className="absolute -left-[9px] top-1 h-4 w-4 rounded-full border-2 border-amber-500 bg-surface-lowest"></div>
                     <p className="text-[13px] font-semibold text-neutral-800">
-                      {formatBookingDate(booking.bookingDate || booking.startTime)} {formatClockTime(booking.startTime)} -{' '}
+                      {formatScheduledDate(booking.bookingDate || booking.startTime)} {formatScheduledTime(booking.startTime)} -{' '}
                       {booking.userFullName || booking.guestName || 'Khách vãng lai'}
                     </p>
                     <p className="mt-0.5 text-xs text-neutral-500">
@@ -355,7 +348,7 @@ export const DashboardView = () => {
                   <div key={`${warning.bookingId}-${warning.tableId ?? 'na'}`} className="rounded-lg border border-orange-100 bg-white p-3 shadow-sm">
                     <p className="text-sm font-medium text-orange-800">
                       Bàn {warning.tableNumber || warning.tableId || 'chưa rõ'} ({getTableTypeLabel(warning.category)}) - còn {warning.minutesRemaining} phút - khách{' '}
-                      {warning.currentCustomerName || 'chưa rõ'} - hết lúc {formatClockTime(warning.endsAt)}
+                      {warning.currentCustomerName || 'chưa rõ'} - hết lúc {formatScheduledTime(warning.endsAt)}
                     </p>
                   </div>
                 ))}
@@ -383,7 +376,7 @@ export const DashboardView = () => {
                       <p className="mt-0.5 text-xs text-neutral-600">
                         Giá trị đơn: {booking.fnBTotal.toLocaleString()}đ
                       </p>
-                      <p className="mt-1 text-[10px] text-neutral-400">{formatClockTime(booking.updatedAt)}</p>
+                      <p className="mt-1 text-[10px] text-neutral-400">{formatVietnamTime(booking.updatedAt)}</p>
                     </div>
                   </div>
                 ))
